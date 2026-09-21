@@ -1208,6 +1208,7 @@
           localStorage.removeItem('userRole');
           localStorage.removeItem('userName');
           localStorage.removeItem('userKelas');
+          localStorage.removeItem('userEmail');
           localStorage.removeItem('uploadTicket');
           window.location.href = 'login.html';
           return;
@@ -1222,6 +1223,9 @@
       // Kelas si pengaju (mis. "A","B","C","D", atau "Guru"/"Admin" untuk akun non-siswa) — dipakai untuk
       // menentukan warna titik penanda kelas di Kalender Kegiatan.
       const savedKelas = localStorage.getItem('userKelas');
+      // Email si pengaju (kalau ada di sheet User) -- dipakai untuk mengirim
+      // notifikasi email otomatis saat reservasi disetujui/ditolak.
+      const savedEmail = localStorage.getItem('userEmail');
       if (savedName) {
         document.getElementById('displayRole').textContent = `${savedName} (${savedRole})`;
       }
@@ -1237,21 +1241,6 @@
       const pageTitle = document.getElementById('pageTitle');
       const pageSubtitle = document.getElementById('pageSubtitle');
       const navItems = document.querySelectorAll('.nav-item');
-
-       // Kalimat sambutan otomatis, menyesuaikan role + nama yang login (dari localStorage).
-      const greetingEl = document.getElementById('userGreeting');
-      if (greetingEl) {
-        const roleLower = (savedRole || '').toLowerCase();
-        let greetingText = '';
-        if (roleLower === 'guru') {
-          greetingText = savedName ? `Selamat bertugas kembali, ${savedName}.` : 'Selamat bertugas kembali.';
-        } else if (roleLower === 'siswa') {
-          greetingText = savedName ? `Siap untuk kegiatan hari ini, ${savedName}?` : 'Siap untuk kegiatan hari ini?';
-        } else if (roleLower === 'admin') {
-          greetingText = 'Panel kontrol sistem siap digunakan.';
-        }
-        greetingEl.textContent = greetingText;
-      }
 
       // ================== UI/UX MOBILE: SIDEBAR JADI DRAWER (hamburger menu) ==================
       // Di layar kecil, sidebar disembunyikan (lihat CSS @media) dan dibuka lewat tombol hamburger
@@ -1331,6 +1320,7 @@
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         localStorage.removeItem('userKelas');
+        localStorage.removeItem('userEmail');
         localStorage.removeItem('uploadTicket');
         firebase.auth().signOut().finally(function() {
           window.location.href = 'login.html';
@@ -1497,6 +1487,9 @@
               keperluan: keperluan,
               // Identitas utama SELALU dari akun terverifikasi saat login (tidak bisa diketik bebas oleh pengaju).
               peminjam: savedName || savedRole,
+              // Email pengaju (kalau kolomnya ada & terisi di sheet User) -- dipakai
+              // untuk mengirim notifikasi email otomatis saat status berubah.
+              peminjamEmail: savedEmail || '',
               pengajuRole: savedRole,
               // Kelas akun (A/B/C/D/Guru/Admin) — dipakai untuk titik warna penanda kelas di Kalender Kegiatan.
               kelas: savedKelas || '',
@@ -1827,6 +1820,46 @@
         }
       }
 
+      // ================== NOTIFIKASI EMAIL OTOMATIS (approved/rejected) ==================
+      // Dipanggil dari updateStatus() setelah status berhasil diubah di Firestore.
+      // Browser tidak bisa kirim email langsung, jadi diteruskan ke Apps Script
+      // (pakai MailApp di sisi server). Kalau pengaju tidak punya email di sheet
+      // User, atau pengiriman gagal, proses approve/reject TETAP dianggap sukses --
+      // cuma dicatat di console supaya admin tidak keblok gara-gara email.
+      async function kirimNotifikasiEmailStatus(data, newStatus, alasan) {
+        try {
+          const email = data && data.peminjamEmail;
+          if (!email) return; // akun ini belum punya email di sheet User, lewati.
+
+          const uploadTicket = localStorage.getItem('uploadTicket');
+          if (!uploadTicket) return;
+
+          const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'sendStatusEmail',
+              uploadTicket: uploadTicket,
+              to: email,
+              newStatus: newStatus,
+              peminjam: data.peminjam || '',
+              tanggal: data.tanggal || '',
+              jamMulai: data.jamMulai || '',
+              jamSelesai: data.jamSelesai || '',
+              keperluan: data.keperluan || '',
+              disetujuiOleh: data.disetujuiOleh || (savedName || savedRole),
+              alasanDitolak: alasan || ''
+            })
+          });
+          const result = await response.json();
+          if (result.status !== 'success' && result.status !== 'skipped') {
+            console.error('Notifikasi email gagal:', result.message);
+          }
+        } catch (err) {
+          console.error('Gagal mengirim notifikasi email:', err);
+        }
+      }
+
       // Fungsi Global Aksi Admin (Setujui / Tolak)
       // extra.alasan dipakai saat menolak (wajib lewat modal alasan penolakan).
       // Saat menyetujui, otomatis dicatat nama admin (akun yang sedang login) yang menyetujui.
@@ -1840,6 +1873,12 @@
             payload.alasanDitolak = (extra && extra.alasan) ? extra.alasan : '';
           }
           await db.collection('reservasi').doc(docId).update(payload);
+
+          // Kirim notifikasi email di latar belakang -- tidak menunggu/tidak
+          // menggagalkan proses approve/reject kalau emailnya gagal terkirim.
+          const dataReservasi = Object.assign({}, pendingRequestsCache[docId] || {}, payload);
+          kirimNotifikasiEmailStatus(dataReservasi, newStatus, payload.alasanDitolak);
+
           alert(`Reservasi berhasil ${newStatus === 'approved' ? 'disetujui' : 'ditolak'}!`);
           closePendingDetailModal();
           loadAdminRequests(); // Refresh tabel admin
