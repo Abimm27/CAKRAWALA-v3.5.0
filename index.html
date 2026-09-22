@@ -1849,15 +1849,22 @@
       // Kirim email notifikasi lewat Apps Script (MailApp) setelah Setujui/Tolak.
       async function sendNotificationEmail(docId, newStatus, payload){
         const data = pendingRequestsCache[docId];
-        if(!data || !data.emailPengaju){
-          console.warn('Notifikasi email dilewati: akun pengaju belum punya email di database.');
+        if(!data){
+          console.warn('[notifikasi email] Dilewati: data reservasi tidak ada di cache (docId: ' + docId + ').');
+          return;
+        }
+        if(!data.emailPengaju){
+          console.warn('[notifikasi email] Dilewati: akun "' + (data.peminjam || '?') + '" belum punya email di database (kolom "email" di sheet kosong/tidak ada).');
           return;
         }
         const adminTicket = localStorage.getItem('uploadTicket');
-        if(!adminTicket) return;
+        if(!adminTicket){
+          console.warn('[notifikasi email] Dilewati: uploadTicket admin tidak ada di localStorage. Coba logout lalu login ulang.');
+          return;
+        }
 
         try {
-          await fetch(APPS_SCRIPT_URL, {
+          const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
@@ -1874,8 +1881,14 @@
               alasanDitolak: payload.alasanDitolak || ''
             })
           });
+          const result = await response.json();
+          if(result.status === 'success'){
+            console.log('[notifikasi email] Berhasil dikirim ke ' + data.emailPengaju);
+          } else {
+            console.error('[notifikasi email] GAGAL dari server Apps Script:', result.message || result);
+          }
         } catch (err) {
-          console.warn('Gagal mengirim notifikasi email (reservasi tetap berhasil diproses):', err);
+          console.error('[notifikasi email] GAGAL terhubung ke Apps Script:', err);
         }
       }
 
