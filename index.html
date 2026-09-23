@@ -1006,8 +1006,40 @@
           <label>Peminjam / Penyelenggara</label>
           <input type="text" id="eventPeminjam" placeholder="Contoh: Admin Sekolah" required>
         </div>
+
+        <!-- Hanya muncul saat mode "Pindahkan" untuk reservasi milik Siswa/Guru (bukan event buatan Admin sendiri). -->
+        <div class="form-group" id="mintaKonfirmasiWrap" style="display:none; background: rgba(212,163,58,0.08); padding:12px; border-radius:10px;">
+          <label style="display:flex; align-items:flex-start; gap:8px; font-weight:500; cursor:pointer;">
+            <input type="checkbox" id="mintaKonfirmasiCheckbox" style="margin-top:3px;">
+            <span>Minta konfirmasi pengaju dulu (opsional) — kirim pemberitahuan ke siswa/guru bahwa ada jadwal yang lebih penting, lalu mereka yang memilih setuju pindah atau membatalkan jadwalnya sendiri.</span>
+          </label>
+          <div id="alasanPindahWrap" style="display:none; margin-top:10px;">
+            <label>Alasan pemindahan (akan ditampilkan ke pengaju)</label>
+            <textarea id="alasanPindahInput" rows="3" placeholder="Contoh: Ruang AVR dibutuhkan untuk kegiatan sekolah yang lebih prioritas pada jam yang sama."></textarea>
+          </div>
+        </div>
+
         <button type="submit" class="btn-submit" id="eventFormSubmit">Simpan Event</button>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ALASAN PEMBATALAN JADWAL TERKONFIRMASI (admin wajib isi alasan sebelum membatalkan jadwal yang sudah disetujui) -->
+  <div class="modal-overlay" id="cancelReasonModal">
+    <div class="modal-box">
+      <button class="modal-close" id="cancelReasonClose" aria-label="Tutup" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <span class="modal-eyebrow">Batalkan Jadwal Terkonfirmasi</span>
+      <h3>Alasan Pembatalan</h3>
+      <div class="form-group" style="margin-top: 16px;">
+        <label>Jelaskan alasan membatalkan jadwal yang sudah disetujui ini (wajib diisi, akan dikirim ke pengaju lewat email)</label>
+        <textarea id="cancelReasonInput" rows="4" placeholder="Contoh: Ruangan AVR dibutuhkan mendadak untuk kegiatan sekolah lain."></textarea>
+      </div>
+      <div style="display:flex; gap:12px; margin-top: 8px;">
+        <button id="cancelReasonCancel" class="btn-sm" style="flex:1; padding:11px; font-size:13.5px; background: rgba(31,59,50,0.08); color: var(--ink);" type="button">Batal</button>
+        <button id="cancelReasonConfirm" class="btn-sm btn-reject" style="flex:1; padding:11px; font-size:13.5px;" type="button">Batalkan Jadwal</button>
+      </div>
     </div>
   </div>
 
@@ -1159,6 +1191,24 @@
         <div id="myResRejectedInfo" class="info-callout rejected" style="display:none;">
           <strong>Alasan ditolak</strong>
           <span id="myResRejectedReason">-</span>
+        </div>
+        <div id="myResDibatalkanInfo" class="info-callout rejected" style="display:none;">
+          <strong>Alasan pembatalan</strong>
+          <span id="myResDibatalkanReason">-</span>
+        </div>
+
+        <!-- Muncul kalau admin mengusulkan pemindahan jadwal & menunggu jawaban pengaju. -->
+        <div id="myResPindahProposalInfo" style="display:none; background: rgba(212,163,58,0.1); border: 1px solid rgba(212,163,58,0.4); border-radius: 10px; padding: 14px;">
+          <strong style="display:block; margin-bottom:6px;">Perlu Konfirmasi: Usulan Pemindahan Jadwal</strong>
+          <p style="font-size:13.5px; line-height:1.5; margin:0 0 10px;">
+            Admin mengusulkan pemindahan jadwal ini karena ada jadwal lain yang lebih penting pada waktu yang sama.
+          </p>
+          <p style="font-size:13.5px; margin:0 0 4px;"><strong>Alasan admin:</strong> <span id="myResAlasanPindah">-</span></p>
+          <p style="font-size:13.5px; margin:0 0 12px;"><strong>Jadwal usulan pengganti:</strong> <span id="myResJadwalUsulan">-</span></p>
+          <div style="display:flex; gap:10px;">
+            <button id="myResBtnSetujuPindah" class="btn-sm btn-approve" style="flex:1; padding:10px; font-size:13px;" type="button">Setuju, Pindahkan</button>
+            <button id="myResBtnTolakPindah" class="btn-sm btn-reject" style="flex:1; padding:10px; font-size:13px;" type="button">Tidak Bisa, Batalkan</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1648,7 +1698,11 @@
 
           let html = '';
           rows.forEach(({ id, data }) => {
-            const badge = statusLabel[data.status] || `<span class="status pending">${escapeHtml(data.status || '-')}</span>`;
+            let badge = statusLabel[data.status] || `<span class="status pending">${escapeHtml(data.status || '-')}</span>`;
+            // Kalau admin sedang mengusulkan pemindahan jadwal dan masih menunggu jawaban pengaju, tambahkan badge peringatan.
+            if (data.pindahProposal && data.pindahProposal.status === 'menunggu') {
+              badge += ' <span class="status pending" style="background: rgba(212,163,58,0.18); color:#8a6415; margin-left:4px;">Perlu Konfirmasi</span>';
+            }
             html += `
               <tr class="my-row" onclick="openMyReservationDetailModal('${id}')">
                 <td><strong>${escapeHtml(data.tanggal) || '-'}</strong><br><small style="color:#5c675f;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</small></td>
@@ -1703,8 +1757,12 @@
 
         const approvedInfo = document.getElementById('myResApprovedInfo');
         const rejectedInfo = document.getElementById('myResRejectedInfo');
+        const dibatalkanInfo = document.getElementById('myResDibatalkanInfo');
+        const pindahProposalInfo = document.getElementById('myResPindahProposalInfo');
         approvedInfo.style.display = 'none';
         rejectedInfo.style.display = 'none';
+        dibatalkanInfo.style.display = 'none';
+        pindahProposalInfo.style.display = 'none';
 
         if (data.status === 'approved') {
           approvedInfo.style.display = 'block';
@@ -1712,9 +1770,70 @@
         } else if (data.status === 'rejected') {
           rejectedInfo.style.display = 'block';
           document.getElementById('myResRejectedReason').textContent = data.alasanDitolak || 'Tidak ada alasan yang dicantumkan.';
+        } else if (data.status === 'dibatalkan') {
+          dibatalkanInfo.style.display = 'block';
+          document.getElementById('myResDibatalkanReason').textContent = data.alasanDibatalkan || 'Tidak ada alasan yang dicantumkan.';
+        }
+
+        // Kalau ada usulan pemindahan jadwal dari admin yang masih menunggu jawaban, tampilkan blok konfirmasi.
+        if (data.status === 'approved' && data.pindahProposal && data.pindahProposal.status === 'menunggu') {
+          pindahProposalInfo.style.display = 'block';
+          document.getElementById('myResAlasanPindah').textContent = data.pindahProposal.alasanPindah || '(tidak dicantumkan)';
+          document.getElementById('myResJadwalUsulan').textContent =
+            (data.pindahProposal.tanggalBaru || '-') + ', ' + (data.pindahProposal.jamMulaiBaru || '-') + ' - ' + (data.pindahProposal.jamSelesaiBaru || '-');
+
+          document.getElementById('myResBtnSetujuPindah').onclick = () => respondPindahProposal(docId, 'terima');
+          document.getElementById('myResBtnTolakPindah').onclick = () => respondPindahProposal(docId, 'batal');
         }
 
         document.getElementById('myReservationDetailModal').classList.add('show');
+      };
+
+      // Jawaban pengaju (siswa/guru) atas usulan pemindahan jadwal dari admin.
+      // aksi: 'terima' -> jadwal dipindah ke tanggal/jam usulan, tetap berstatus approved.
+      //       'batal'  -> jadwal dibatalkan sepenuhnya (pengaju tidak bisa pindah).
+      window.respondPindahProposal = async function(docId, aksi){
+        const data = myReservationsCache[docId];
+        if(!data || !data.pindahProposal) return;
+
+        const proposal = data.pindahProposal;
+
+        if (aksi === 'terima') {
+          const yakin = confirm(`Setuju memindahkan jadwal ke ${proposal.tanggalBaru}, ${proposal.jamMulaiBaru} - ${proposal.jamSelesaiBaru}?`);
+          if(!yakin) return;
+          try {
+            await db.collection('reservasi').doc(docId).update({
+              tanggal: proposal.tanggalBaru,
+              jamMulai: proposal.jamMulaiBaru,
+              jamSelesai: proposal.jamSelesaiBaru,
+              pindahProposal: Object.assign({}, proposal, { status: 'diterima' })
+            });
+            alert('Jadwal berhasil dipindahkan sesuai usulan admin.');
+            document.getElementById('myReservationDetailModal').classList.remove('show');
+            loadMyReservations();
+          } catch (err) {
+            console.error('Gagal menyetujui pemindahan jadwal:', err);
+            alert('Gagal memproses jawaban. Coba lagi.');
+          }
+        } else {
+          const alasanBatal = 'Pengaju tidak bisa pindah ke jadwal usulan (' + (proposal.tanggalBaru || '-') + ', ' + (proposal.jamMulaiBaru || '-') + ' - ' + (proposal.jamSelesaiBaru || '-') + '). Alasan admin semula: ' + (proposal.alasanPindah || '-');
+          const yakin = confirm('Batalkan jadwal ini karena tidak bisa pindah ke jadwal usulan?');
+          if(!yakin) return;
+          try {
+            await db.collection('reservasi').doc(docId).update({
+              status: 'dibatalkan',
+              alasanDibatalkan: alasanBatal,
+              dibatalkanOleh: data.peminjam || 'Pengaju',
+              pindahProposal: Object.assign({}, proposal, { status: 'ditolak' })
+            });
+            alert('Jadwal berhasil dibatalkan.');
+            document.getElementById('myReservationDetailModal').classList.remove('show');
+            loadMyReservations();
+          } catch (err) {
+            console.error('Gagal membatalkan jadwal:', err);
+            alert('Gagal memproses jawaban. Coba lagi.');
+          }
+        }
       };
       document.getElementById('myReservationDetailClose').addEventListener('click', () => {
         document.getElementById('myReservationDetailModal').classList.remove('show');
@@ -1846,9 +1965,11 @@
         }
       };
 
-      // Kirim email notifikasi lewat Apps Script (MailApp) setelah Setujui/Tolak.
-      async function sendNotificationEmail(docId, newStatus, payload){
-        const data = pendingRequestsCache[docId];
+      // Kirim email notifikasi lewat Apps Script (MailApp) setelah Setujui/Tolak/Batalkan/Usulan Pindah.
+      // dataOverride opsional: dipakai saat data reservasi bukan berasal dari pendingRequestsCache
+      // (misalnya dari approvedSchedulesCache saat admin membatalkan/memindahkan jadwal terkonfirmasi).
+      async function sendNotificationEmail(docId, newStatus, payload, dataOverride){
+        const data = dataOverride || pendingRequestsCache[docId];
         if(!data){
           console.warn('[notifikasi email] Dilewati: data reservasi tidak ada di cache (docId: ' + docId + ').');
           return;
@@ -1878,7 +1999,14 @@
               jamSelesai: data.jamSelesai || '',
               statusBaru: newStatus,
               disetujuiOleh: payload.disetujuiOleh || '',
-              alasanDitolak: payload.alasanDitolak || ''
+              alasanDitolak: payload.alasanDitolak || '',
+              alasanDibatalkan: payload.alasanDibatalkan || '',
+              dibatalkanOleh: payload.dibatalkanOleh || '',
+              tanggalBaru: payload.tanggalBaru || '',
+              jamMulaiBaru: payload.jamMulaiBaru || '',
+              jamSelesaiBaru: payload.jamSelesaiBaru || '',
+              alasanPindah: payload.alasanPindah || '',
+              diajukanOleh: payload.diajukanOleh || ''
             })
           });
           const result = await response.json();
@@ -1976,6 +2104,10 @@
       // ================== FITUR ADMIN: KELOLA JADWAL TERKONFIRMASI ==================
       // Menampilkan semua reservasi berstatus 'approved' beserta tombol
       // Pindahkan (edit tanggal/jam) dan Batalkan.
+      // Cache data jadwal terkonfirmasi (diisi ulang tiap loadAdminApprovedSchedules()), dipakai supaya
+      // klik "Pindahkan"/"Batalkan" tidak perlu fetch ulang ke Firestore -- termasuk untuk kirim email notifikasi.
+      let approvedSchedulesCache = {};
+
       async function loadAdminApprovedSchedules() {
         const container = document.getElementById('adminApprovedContainer');
         if(!container) return;
@@ -1988,16 +2120,25 @@
 
           if(snapshot.empty) {
             container.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--ink-soft);">Belum ada jadwal terkonfirmasi.</td></tr>';
+            approvedSchedulesCache = {};
             return;
           }
 
           let html = '';
+          approvedSchedulesCache = {};
           snapshot.forEach(docSnap => {
             const data = docSnap.data();
             const docId = docSnap.id;
+            approvedSchedulesCache[docId] = data;
+
+            let konfirmasiBadge = '';
+            if (data.pindahProposal && data.pindahProposal.status === 'menunggu') {
+              konfirmasiBadge = ' <span class="status pending" style="background: rgba(212,163,58,0.18); color:#8a6415;">Menunggu Jawaban Pengaju</span>';
+            }
+
             html += `
               <tr>
-                <td><strong>${escapeHtml(data.peminjam) || 'Tidak diketahui'}</strong>${data.pengajuRole ? `<br><span style="color:#5c675f; font-size:12px;">${escapeHtml(data.pengajuRole)}</span>` : ''}</td>
+                <td><strong>${escapeHtml(data.peminjam) || 'Tidak diketahui'}</strong>${data.pengajuRole ? `<br><span style="color:#5c675f; font-size:12px;">${escapeHtml(data.pengajuRole)}</span>` : ''}${konfirmasiBadge}</td>
                 <td><strong>${escapeHtml(data.tanggal) || '-'}</strong><br><span style="color:#5c675f; font-size:12px;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</span></td>
                 <td>${escapeHtml(data.keperluan) || '-'}</td>
                 <td>
@@ -2017,25 +2158,60 @@
         }
       }
 
-      // Membatalkan jadwal yang sudah disetujui.
-      // Status diubah jadi 'dibatalkan' (bukan dihapus permanen) supaya masih ada riwayatnya.
-      // Kalau kamu ingin menghapus datanya total dari Firestore, ganti isi try{} ini dengan:
-      //   await db.collection('reservasi').doc(docId).delete();
-      window.cancelApprovedSchedule = async function(docId) {
-        const yakin = confirm("Batalkan jadwal ini? Jadwal akan hilang dari kalender dan daftar jadwal terkonfirmasi.");
-        if(!yakin) return;
+      // ================== FITUR ADMIN: BATALKAN JADWAL TERKONFIRMASI (wajib isi alasan) ==================
+      // docId jadwal yang sedang diproses lewat modal alasan pembatalan.
+      let cancelingDocId = null;
+
+      // Membatalkan jadwal yang sudah disetujui. Status diubah jadi 'dibatalkan' (bukan dihapus permanen)
+      // supaya masih ada riwayatnya. Sekarang admin WAJIB mengisi alasan pembatalan, dan pengaju akan
+      // dinotifikasi lewat email (sama seperti notifikasi Setujui/Tolak).
+      window.cancelApprovedSchedule = function(docId) {
+        cancelingDocId = docId;
+        document.getElementById('cancelReasonInput').value = '';
+        document.getElementById('cancelReasonModal').classList.add('show');
+      };
+      function closeCancelReasonModal(){
+        document.getElementById('cancelReasonModal').classList.remove('show');
+        cancelingDocId = null;
+      }
+      document.getElementById('cancelReasonClose').addEventListener('click', closeCancelReasonModal);
+      document.getElementById('cancelReasonCancel').addEventListener('click', closeCancelReasonModal);
+      document.getElementById('cancelReasonModal').addEventListener('click', (e) => {
+        if(e.target.id === 'cancelReasonModal') closeCancelReasonModal();
+      });
+      document.getElementById('cancelReasonConfirm').addEventListener('click', async () => {
+        if(!cancelingDocId) return;
+        const alasan = document.getElementById('cancelReasonInput').value.trim();
+        if(!alasan){
+          alert('Alasan pembatalan wajib diisi supaya pengaju tahu kenapa jadwalnya dibatalkan.');
+          return;
+        }
+        const docId = cancelingDocId;
+        const data = approvedSchedulesCache[docId];
+        const dibatalkanOleh = savedName || savedRole;
+
         try {
-          await db.collection('reservasi').doc(docId).update({ status: 'dibatalkan' });
+          await db.collection('reservasi').doc(docId).update({
+            status: 'dibatalkan',
+            alasanDibatalkan: alasan,
+            dibatalkanOleh: dibatalkanOleh
+          });
           alert("Jadwal berhasil dibatalkan.");
+          closeCancelReasonModal();
           loadAdminApprovedSchedules();
           if (document.getElementById('kalenderPanel').classList.contains('active')) {
             renderCalendar(currentYear, currentMonth);
+          }
+
+          // Kirim notifikasi email ke pengaju (tidak di-await supaya admin tidak perlu menunggu).
+          if (data) {
+            sendNotificationEmail(docId, 'dibatalkan', { alasanDibatalkan: alasan, dibatalkanOleh: dibatalkanOleh }, data);
           }
         } catch (err) {
           console.error("Gagal membatalkan jadwal:", err);
           alert("Gagal membatalkan jadwal.");
         }
-      };
+      });
 
       // ================== LOGIKA KALENDER DARI FIRESTORE ==================
       const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -2582,20 +2758,41 @@
       const eventFormEyebrow = document.getElementById('eventFormEyebrow');
       const eventFormSubmit = document.getElementById('eventFormSubmit');
       let editingEventId = null; // null = mode tambah baru, terisi = mode pindahkan/edit
+      let editingEventData = null; // data lengkap dokumen yang sedang di-pindahkan (dipakai utk email & cek eligibilitas usulan)
+
+      const mintaKonfirmasiWrap = document.getElementById('mintaKonfirmasiWrap');
+      const mintaKonfirmasiCheckbox = document.getElementById('mintaKonfirmasiCheckbox');
+      const alasanPindahWrap = document.getElementById('alasanPindahWrap');
+      const alasanPindahInput = document.getElementById('alasanPindahInput');
+
+      mintaKonfirmasiCheckbox.addEventListener('change', () => {
+        alasanPindahWrap.style.display = mintaKonfirmasiCheckbox.checked ? 'block' : 'none';
+      });
+
+      function resetMintaKonfirmasiUI(){
+        mintaKonfirmasiWrap.style.display = 'none';
+        mintaKonfirmasiCheckbox.checked = false;
+        alasanPindahWrap.style.display = 'none';
+        alasanPindahInput.value = '';
+      }
 
       function closeEventFormModal(){
         eventFormModal.classList.remove('show');
         eventForm.reset();
         editingEventId = null;
+        editingEventData = null;
+        resetMintaKonfirmasiUI();
       }
 
       // Tombol "+ Tambah Event" di header kalender (tanpa tanggal terisi otomatis)
       document.getElementById('btnAddEvent').addEventListener('click', () => {
         editingEventId = null;
+        editingEventData = null;
         eventFormEyebrow.textContent = 'Kalender Admin';
         eventFormTitle.textContent = 'Tambah Event';
         eventFormSubmit.textContent = 'Simpan Event';
         eventForm.reset();
+        resetMintaKonfirmasiUI();
         eventFormModal.classList.add('show');
       });
 
@@ -2603,10 +2800,12 @@
       document.getElementById('btnAddEventForDay').addEventListener('click', () => {
         closeDayModal();
         editingEventId = null;
+        editingEventData = null;
         eventFormEyebrow.textContent = 'Kalender Admin';
         eventFormTitle.textContent = 'Tambah Event';
         eventFormSubmit.textContent = 'Simpan Event';
         eventForm.reset();
+        resetMintaKonfirmasiUI();
         if (selectedDateForAdd) {
           document.getElementById('eventTanggal').value = selectedDateForAdd;
         }
@@ -2616,6 +2815,7 @@
       // Dipanggil dari tombol "Pindahkan" di tabel admin (lihat loadAdminApprovedSchedules)
       window.openEditEventModal = function(docId, data){
         editingEventId = docId;
+        editingEventData = data;
         eventFormEyebrow.textContent = 'Pindahkan Jadwal';
         eventFormTitle.textContent = 'Ubah Tanggal / Jam Jadwal';
         eventFormSubmit.textContent = 'Simpan Perubahan';
@@ -2626,6 +2826,13 @@
         document.getElementById('eventKeperluan').value = data.keperluan || '';
         document.getElementById('eventPeminjam').value = data.peminjam || '';
 
+        resetMintaKonfirmasiUI();
+        // Opsi "minta konfirmasi dulu" hanya masuk akal untuk reservasi milik Siswa/Guru
+        // (bukan event yang memang dibuat langsung oleh Admin), dan butuh email pengaju.
+        if (data.pengajuRole && data.pengajuRole !== 'Admin' && data.emailPengaju) {
+          mintaKonfirmasiWrap.style.display = 'block';
+        }
+
         eventFormModal.classList.add('show');
       };
 
@@ -2634,7 +2841,8 @@
         if(e.target.id === 'eventFormModal') closeEventFormModal();
       });
 
-      // Submit form: mode Tambah (add doc baru berstatus approved) atau mode Pindahkan (update doc yang ada)
+      // Submit form: mode Tambah (add doc baru berstatus approved), mode Pindahkan langsung (update doc yang
+      // ada), atau mode Usulan Pindah (kirim permintaan konfirmasi ke pengaju, jadwal asli belum berubah).
       eventForm.addEventListener('submit', async function(e){
         e.preventDefault();
 
@@ -2658,6 +2866,57 @@
           return;
         }
 
+        // Mode Usulan Pindah: hanya berlaku saat sedang Pindahkan reservasi Siswa/Guru & checkbox dicentang.
+        const modeUsulan = !!(editingEventId && mintaKonfirmasiWrap.style.display !== 'none' && mintaKonfirmasiCheckbox.checked);
+
+        if (modeUsulan) {
+          const alasanPindah = alasanPindahInput.value.trim();
+          if (!alasanPindah) {
+            alert('Alasan pemindahan wajib diisi supaya pengaju tahu kenapa jadwalnya perlu dipindah.');
+            return;
+          }
+
+          const cekBentrokUsulan = await checkTimeConflict(payload.tanggal, payload.jamMulai, payload.jamSelesai, editingEventId);
+          if (cekBentrokUsulan.conflict) {
+            const lanjutUsulan = confirm(cekBentrokUsulan.message + '\n\nSebagai Admin, kamu tetap bisa melanjutkan mengirim usulan ini. Lanjutkan?');
+            if (!lanjutUsulan) return;
+          }
+
+          const diajukanOleh = savedName || savedRole;
+          const pindahProposal = {
+            tanggalBaru: payload.tanggal,
+            jamMulaiBaru: payload.jamMulai,
+            jamSelesaiBaru: payload.jamSelesai,
+            alasanPindah: alasanPindah,
+            diajukanOleh: diajukanOleh,
+            diajukanPada: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'menunggu'
+          };
+
+          try {
+            // Jadwal asli (tanggal/jam) SENGAJA tidak diubah dulu -- menunggu jawaban pengaju.
+            await db.collection('reservasi').doc(editingEventId).update({ pindahProposal });
+            alert("Permintaan konfirmasi pemindahan terkirim ke pengaju. Jadwal akan berpindah setelah pengaju menjawab lewat tab \"Reservasi Saya\".");
+
+            if (editingEventData) {
+              sendNotificationEmail(editingEventId, 'usulan_pindah', {
+                tanggalBaru: pindahProposal.tanggalBaru,
+                jamMulaiBaru: pindahProposal.jamMulaiBaru,
+                jamSelesaiBaru: pindahProposal.jamSelesaiBaru,
+                alasanPindah: alasanPindah,
+                diajukanOleh: diajukanOleh
+              }, editingEventData);
+            }
+
+            closeEventFormModal();
+            loadAdminApprovedSchedules();
+          } catch (err) {
+            console.error("Gagal mengirim usulan pemindahan:", err);
+            alert("Gagal mengirim usulan pemindahan. Coba lagi.");
+          }
+          return;
+        }
+
         // Admin tetap diperbolehkan override (misal untuk kondisi khusus), tapi tetap diberi peringatan
         // bentrok jadwal supaya tidak kejadian tanpa sadar -- beda dengan form Siswa/Guru yang diblokir total.
         const cekBentrokAdmin = await checkTimeConflict(payload.tanggal, payload.jamMulai, payload.jamSelesai, editingEventId);
@@ -2668,7 +2927,9 @@
 
         try {
           if (editingEventId) {
-            // Mode Pindahkan: update dokumen yang sudah ada, status tetap approved.
+            // Mode Pindahkan langsung: update dokumen yang sudah ada, status tetap approved.
+            // Kalau sebelumnya ada usulan pindah yang belum dijawab, bersihkan supaya tidak nyangkut.
+            payload.pindahProposal = firebase.firestore.FieldValue.delete();
             await db.collection('reservasi').doc(editingEventId).update(payload);
             alert("Jadwal berhasil dipindahkan.");
           } else {
