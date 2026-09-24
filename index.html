@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<style>html.auth-pending body{ visibility:hidden !important; }</style>
+<script>document.documentElement.classList.add('auth-pending');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CAKRAWALA — Ruang Audio Visual | SMA Banua Kalsel</title>
@@ -1454,12 +1456,20 @@
     }
     const db = firebase.firestore();
 
+    // Tombol Back/Forward bisa memulihkan snapshot halaman dari bfcache TANPA menjalankan
+    // ulang DOMContentLoaded. Tanpa handler ini, dashboard lama tampil lagi setelah logout.
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted && (!localStorage.getItem('userRole') || !firebase.auth().currentUser)) {
+        document.documentElement.classList.add('auth-pending');
+        window.location.replace('login.html');
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
       // 1. Cek localStorage dulu (buat tampilan cepat / non-security)
       const savedRole = localStorage.getItem('userRole');
       if (!savedRole) {
-        alert("Kamu belum login! Mengarahkan kembali ke halaman login...");
-        window.location.href = 'login.html';
+        window.location.replace('login.html');
         return;
       }
 
@@ -1477,7 +1487,7 @@
           localStorage.removeItem('userKelas');
           localStorage.removeItem('userEmail');
           localStorage.removeItem('uploadTicket');
-          window.location.href = 'login.html';
+          window.location.replace('login.html');
           return;
         }
         initDashboard(savedRole);
@@ -1485,6 +1495,7 @@
     });
 
     function initDashboard(savedRole) {
+      document.documentElement.classList.remove('auth-pending');
       document.getElementById('displayRole').textContent = savedRole;
       const savedName = localStorage.getItem('userName');
       // Kelas si pengaju (mis. "A","B","C","D", atau "Guru"/"Admin" untuk akun non-siswa) — dipakai untuk
@@ -1583,13 +1594,14 @@
       });
 
       document.getElementById('logoutBtn').addEventListener('click', function() {
+        document.documentElement.classList.add('auth-pending');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         localStorage.removeItem('userKelas');
         localStorage.removeItem('userEmail');
         localStorage.removeItem('uploadTicket');
         firebase.auth().signOut().finally(function() {
-          window.location.href = 'login.html';
+          window.location.replace('login.html');
         });
       });
 
