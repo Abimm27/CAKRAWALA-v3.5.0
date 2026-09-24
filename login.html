@@ -681,7 +681,7 @@
   firebase.auth().onAuthStateChanged((user) => {
     const savedRole = localStorage.getItem('userRole');
     if(user && savedRole){
-      window.location.href = 'index.html';
+      window.location.replace('index.html');
     }
   });
 
@@ -740,7 +740,11 @@
         }
 
         showInfo('Berhasil masuk. Mengarahkan ke dashboard...');
-        window.location.href = 'index.html';
+        // Kosongkan isian & pakai replace() supaya login.html TIDAK tersisa di riwayat browser
+        // (tombol Back/Forward tidak bisa lagi memunculkan form terisi ID & password).
+        idInput.value = '';
+        passInput.value = '';
+        window.location.replace('index.html');
       } else if(result.status === 'wrong_password'){
         showError('Kata sandi salah. Periksa kembali dan coba lagi.');
       } else if(result.status === 'inactive'){
@@ -890,6 +894,18 @@
   otpInput.addEventListener('input', () => { otpInput.value = otpInput.value.replace(/\D/g, ''); });
   // Ganti tab peran saat mode reset -> kembali ke form masuk agar peran & ID tidak tertukar.
   tabs.forEach(t => t.addEventListener('click', () => { if(resetPanel.style.display === 'flex') exitReset(); }));
+
+  // Halaman dipulihkan dari bfcache (Back/Forward): bersihkan isian, dan kalau sesi masih aktif langsung ke dashboard.
+  window.addEventListener('pageshow', (e) => {
+    if(e.persisted){
+      document.getElementById('loginForm').reset();
+      idInput.value = ''; passInput.value = ''; passInput.type = 'password';
+      hideMessages();
+      if(firebase.auth().currentUser && localStorage.getItem('userRole')){
+        window.location.replace('index.html');
+      }
+    }
+  });
 
   submitBtn.addEventListener('click', handleLogin);
   document.getElementById('loginForm').addEventListener('submit', (e) => e.preventDefault());
