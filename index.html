@@ -550,7 +550,8 @@
   /* --- FORM USULAN PEMINDAHAN (admin) & FIELD JAM BERDAMPINGAN --- */
   .form-group .dt-display, .form-group .tp-display { padding-right: 40px; }
   .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .modal-box .dt-panel { width: 100%; min-width: 264px; max-width: none; }
+  .modal-box .dt-panel { width: min(300px, 100%); min-width: 264px; max-width: none; padding: 14px; }
+  .modal-box .dt-day { font-size: 12px; }
   .tp-field.tp-align-right .tp-panel { left: auto; right: 0; }
   /* Modal pendek: beri ruang supaya panel kalender/jam tidak terpotong saat terbuka. */
   #pindahFinalizeModal .modal-box:has(.dt-field.open) { padding-bottom: 330px; }
@@ -2631,7 +2632,8 @@
         const ph = panel.offsetHeight || 260;
         const spaceBelow = Math.min(boxRect ? boxRect.bottom : Infinity, window.innerHeight) - r.bottom;
         const spaceAbove = r.top - Math.max(boxRect ? boxRect.top : 0, 0);
-        if(spaceBelow < ph + 12 && spaceAbove > spaceBelow) field.classList.add('drop-up');
+        // Hanya buka ke atas kalau panel muat utuh di atas (kalau tidak, buka ke bawah lalu digulung masuk layar).
+        if(spaceBelow < ph + 12 && spaceAbove >= ph + 12) field.classList.add('drop-up');
         panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
 
@@ -2773,6 +2775,10 @@
           }
           field.classList.add('open');
           autoPlacePanel(field, panel);
+          [hourCol, minuteCol].forEach(col => {
+            const sel = col.querySelector('.tp-selected');
+            col.scrollTop = sel ? sel.offsetTop - (col.clientHeight - sel.offsetHeight) / 2 : 0;
+          });
           setTimeout(() => document.addEventListener('click', outsideClickHandler), 0);
         }
         function closePanel(){
