@@ -550,12 +550,7 @@
   /* --- FORM USULAN PEMINDAHAN (admin) & FIELD JAM BERDAMPINGAN --- */
   .form-group .dt-display, .form-group .tp-display { padding-right: 40px; }
   .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .modal-box .dt-panel { width: min(300px, 100%); min-width: 264px; max-width: none; padding: 14px; }
-  .modal-box .dt-day { font-size: 12px; }
   .tp-field.tp-align-right .tp-panel { left: auto; right: 0; }
-  /* Modal pendek: beri ruang supaya panel kalender/jam tidak terpotong saat terbuka. */
-  #pindahFinalizeModal .modal-box:has(.dt-field.open) { padding-bottom: 330px; }
-  #pindahFinalizeModal .modal-box:has(.tp-field.open) { padding-bottom: 260px; }
   .dt-field.drop-up .dt-panel, .tp-field.drop-up .tp-panel { top: auto; bottom: calc(100% + 8px); }
 
   .usulan-box {
@@ -2623,18 +2618,38 @@
 
       // ================== KOMPONEN: CUSTOM DATE PICKER (form reservasi Siswa/Guru) ==================
       // Tampilan kalender custom bergaya sekolah (bukan date-picker bawaan browser), tanggal lampau otomatis dikunci.
-      // Buka panel ke atas kalau ruang di bawah field tidak cukup (mis. field ada di dasar modal).
+      // Penempatan panel kalender/jam.
+      // - Di dalam modal: panel dibuat "fixed" supaya melayang keluar batas modal (tidak memperbesar/memotong modal).
+      // - Di luar modal: tetap absolute di bawah field, dibalik ke atas kalau ruang bawah tidak cukup.
       function autoPlacePanel(field, panel){
+        const box = field.closest('.modal-box');
         field.classList.remove('drop-up');
         const r = field.getBoundingClientRect();
-        const box = field.closest('.modal-box');
-        const boxRect = box ? box.getBoundingClientRect() : null;
         const ph = panel.offsetHeight || 260;
-        const spaceBelow = Math.min(boxRect ? boxRect.bottom : Infinity, window.innerHeight) - r.bottom;
-        const spaceAbove = r.top - Math.max(boxRect ? boxRect.top : 0, 0);
-        // Hanya buka ke atas kalau panel muat utuh di atas (kalau tidak, buka ke bawah lalu digulung masuk layar).
-        if(spaceBelow < ph + 12 && spaceAbove >= ph + 12) field.classList.add('drop-up');
-        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        if(!box){
+          const spaceBelow = window.innerHeight - r.bottom;
+          const spaceAbove = r.top;
+          if(spaceBelow < ph + 12 && spaceAbove >= ph + 12) field.classList.add('drop-up');
+          return;
+        }
+        const pw = panel.offsetWidth || 290;
+        const margin = 8;
+        let left = field.classList.contains('tp-align-right') ? r.right - pw : r.left;
+        left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+        let top = r.bottom + 8;
+        if(top + ph > window.innerHeight - margin && r.top - ph - 8 >= margin) top = r.top - ph - 8;
+        top = Math.max(margin, Math.min(top, window.innerHeight - ph - margin));
+        panel.style.position = 'fixed';
+        panel.style.left = left + 'px';
+        panel.style.right = 'auto';
+        panel.style.top = top + 'px';
+        panel.style.bottom = 'auto';
+        if(!field._posBound){
+          field._posBound = true;
+          const reposition = () => { if(field.classList.contains('open')) autoPlacePanel(field, panel); };
+          box.addEventListener('scroll', reposition, { passive: true });
+          window.addEventListener('resize', reposition);
+        }
       }
 
       // Set nilai date picker custom lewat kode (mengisi nilai ISO + teks tampilan yang mudah dibaca).
