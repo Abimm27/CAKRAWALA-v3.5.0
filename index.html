@@ -2771,8 +2771,6 @@
 
         function markSelected(col, val){
           col.querySelectorAll('.tp-option').forEach(o => o.classList.toggle('tp-selected', o.dataset.val === val));
-          const el = col.querySelector('.tp-selected');
-          if(el) el.scrollIntoView({ block: 'center' });
         }
 
         function openPanel(){
