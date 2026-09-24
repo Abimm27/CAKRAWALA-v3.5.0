@@ -372,6 +372,19 @@
   }
   .info-msg.show{ display:block; }
 
+  [hidden]{ display:none !important; }
+  .link-btn{
+    background:none; border:none; cursor:pointer; padding:0;
+    font-family:'IBM Plex Sans',sans-serif; font-size:12.5px; font-weight:600;
+    color: var(--chalk-gold-dim);
+  }
+  .link-btn:hover{ text-decoration: underline; }
+  .link-btn:disabled{ color: var(--ink-soft); cursor: default; text-decoration: none; }
+  #resetPanel{ position:relative; flex:1; display:none; flex-direction:column; }
+  #resetPanel .reset-links{ display:flex; justify-content:space-between; margin-top:14px; }
+  #resetPanel .otp-input{ letter-spacing: 0.5em; font-family:'IBM Plex Mono',monospace; font-size:18px; }
+  #resetPanel .error-msg, #resetPanel .info-msg{ margin-bottom:12px; }
+
   @media (max-width: 860px){
     .stage{ grid-template-columns: 1fr; }
     .chalk-panel{ padding: 32px 28px; }
@@ -449,7 +462,7 @@
     </div>
 
     <div class="card">
-      <div class="card-head">
+      <div class="card-head" id="cardHead">
         <span class="role-tag" id="roleTag">Portal Siswa</span>
         <h2 id="cardTitle">Masuk ke akun kamu</h2>
         <p id="cardSub">Gunakan NISN yang terdaftar di sekolah.</p>
@@ -478,7 +491,7 @@
 
         <div class="row-between">
           <label class="remember"><input type="checkbox"> Ingat saya</label>
-          <a href="#">Lupa kata sandi?</a>
+          <a href="#" id="forgotLink">Lupa kata sandi?</a>
         </div>
 
         <button type="button" class="submit-btn" id="submitBtn">
@@ -486,6 +499,45 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
       </form>
+
+      <div id="resetPanel">
+        <div class="card-head">
+          <span class="role-tag" id="resetRoleTag">Reset kata sandi</span>
+          <h2>Lupa kata sandi?</h2>
+          <p id="resetSub">Masukkan ID akunmu. Kami kirim kode 6 digit ke email yang terdaftar.</p>
+        </div>
+        <div class="error-msg" id="resetError"></div>
+        <div class="info-msg" id="resetInfo"></div>
+
+        <form id="resetForm" novalidate>
+          <div class="field" id="resetIdField">
+            <label id="resetIdLabel" for="resetIdInput">NISN / Nomor Induk Siswa</label>
+            <div class="field-input"><input type="text" id="resetIdInput" autocomplete="username"></div>
+          </div>
+
+          <div id="resetStep2" hidden style="display:flex;flex-direction:column;gap:16px">
+            <div class="field">
+              <label for="otpInput">Kode verifikasi (dari email)</label>
+              <div class="field-input"><input type="text" id="otpInput" class="otp-input" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code"></div>
+            </div>
+            <div class="field">
+              <label for="newPassInput">Kata sandi baru</label>
+              <div class="field-input"><input type="password" id="newPassInput" placeholder="Minimal 6 karakter" autocomplete="new-password"></div>
+            </div>
+            <div class="field">
+              <label for="newPassInput2">Ulangi kata sandi baru</label>
+              <div class="field-input"><input type="password" id="newPassInput2" placeholder="Ketik ulang" autocomplete="new-password"></div>
+            </div>
+          </div>
+
+          <button type="button" class="submit-btn" id="resetSubmitBtn"><span id="resetSubmitLabel">Kirim kode verifikasi</span></button>
+        </form>
+
+        <div class="reset-links">
+          <button type="button" class="link-btn" id="backToLogin">← Kembali ke halaman masuk</button>
+          <button type="button" class="link-btn" id="resendBtn" hidden>Kirim ulang kode</button>
+        </div>
+      </div>
 
       <div class="card-foot" id="cardFoot">
         Bukan siswa? Pilih peran <strong>Guru</strong> atau <strong>Admin</strong> di atas.
@@ -703,6 +755,141 @@
       submitBtn.disabled = false;
     }
   }
+
+  // ===================== LUPA KATA SANDI (OTP via email) =====================
+  const forgotLink = document.getElementById('forgotLink');
+  const cardHead = document.getElementById('cardHead');
+  const loginFormEl = document.getElementById('loginForm');
+  const resetPanel = document.getElementById('resetPanel');
+  const resetError = document.getElementById('resetError');
+  const resetInfo = document.getElementById('resetInfo');
+  const resetIdField = document.getElementById('resetIdField');
+  const resetIdInput = document.getElementById('resetIdInput');
+  const resetStep2 = document.getElementById('resetStep2');
+  const otpInput = document.getElementById('otpInput');
+  const newPassInput = document.getElementById('newPassInput');
+  const newPassInput2 = document.getElementById('newPassInput2');
+  const resetSubmitBtn = document.getElementById('resetSubmitBtn');
+  const resetSubmitLabel = document.getElementById('resetSubmitLabel');
+  const resendBtn = document.getElementById('resendBtn');
+  let resetStep = 1;
+  let resendTimer = null;
+
+  function resetMsg(type, text){
+    resetError.classList.remove('show'); resetInfo.classList.remove('show');
+    if(!type) return;
+    const el = type === 'error' ? resetError : resetInfo;
+    el.textContent = text; el.classList.add('show');
+  }
+  function activeRoleKey(){ return document.querySelector('.tab.active').dataset.role; }
+
+  function setResetStep(n){
+    resetStep = n;
+    resetIdField.hidden = n === 2;
+    resetStep2.hidden = n !== 2;
+    resendBtn.hidden = n !== 2;
+    resetSubmitLabel.textContent = n === 2 ? 'Simpan kata sandi baru' : 'Kirim kode verifikasi';
+    document.getElementById('resetSub').textContent = n === 2
+      ? 'Masukkan kode 6 digit dari email, lalu buat kata sandi baru.'
+      : 'Masukkan ID akunmu. Kami kirim kode 6 digit ke email yang terdaftar.';
+  }
+
+  function startResendTimer(sec){
+    clearInterval(resendTimer);
+    let left = sec;
+    resendBtn.disabled = true;
+    const tick = () => {
+      if(left <= 0){ clearInterval(resendTimer); resendBtn.disabled = false; resendBtn.textContent = 'Kirim ulang kode'; return; }
+      resendBtn.textContent = 'Kirim ulang kode (' + left + 'd)';
+      left--;
+    };
+    tick();
+    resendTimer = setInterval(tick, 1000);
+  }
+
+  function enterReset(){
+    hideMessages(); resetMsg(null);
+    const key = activeRoleKey();
+    document.getElementById('resetRoleTag').textContent = 'Reset kata sandi · ' + roleData[key].tag.replace('Portal ', '');
+    document.getElementById('resetIdLabel').textContent = roleData[key].idLabel;
+    resetIdInput.placeholder = roleData[key].idPlaceholder;
+    resetIdInput.value = idInput.value.trim();
+    otpInput.value = newPassInput.value = newPassInput2.value = '';
+    setResetStep(1);
+    cardHead.style.display = 'none'; loginFormEl.style.display = 'none'; cardFoot.style.display = 'none';
+    resetPanel.style.display = 'flex';
+    resetIdInput.focus();
+  }
+  function exitReset(){
+    clearInterval(resendTimer);
+    resetPanel.style.display = 'none';
+    cardHead.style.display = ''; loginFormEl.style.display = ''; cardFoot.style.display = '';
+  }
+
+  async function postJson(payload){
+    // Body string -> Content-Type text/plain, dikenali doPost sebagai request JSON (tanpa preflight CORS).
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+    return res.json();
+  }
+
+  async function sendResetCode(){
+    const id = resetIdInput.value.trim();
+    if(!id){ resetMsg('error', 'ID akun belum diisi.'); return; }
+    resetMsg('info', 'Mengirim kode verifikasi...');
+    resetSubmitBtn.disabled = true; resendBtn.disabled = true;
+    try{
+      const r = await postJson({ action: 'requestPasswordReset', nisn: id, role: activeRoleKey() });
+      if(r.status === 'ok'){
+        resetMsg('info', r.message);
+        setResetStep(2); startResendTimer(60); otpInput.focus();
+      } else if(r.status === 'cooldown'){
+        resetMsg('error', r.message); setResetStep(2); startResendTimer(60);
+      } else {
+        resetMsg('error', r.message || 'Gagal meminta kode. Coba lagi.');
+        if(resetStep === 2) resendBtn.disabled = false;
+      }
+    }catch(err){
+      console.error(err);
+      resetMsg('error', 'Gagal terhubung ke server. Periksa koneksi internet.');
+      if(resetStep === 2) resendBtn.disabled = false;
+    }finally{ resetSubmitBtn.disabled = false; }
+  }
+
+  async function confirmReset(){
+    const otp = otpInput.value.trim(), p1 = newPassInput.value.trim(), p2 = newPassInput2.value.trim();
+    if(!/^\d{6}$/.test(otp)){ resetMsg('error', 'Kode verifikasi harus 6 digit angka.'); return; }
+    if(p1.length < 6){ resetMsg('error', 'Kata sandi baru minimal 6 karakter.'); return; }
+    if(p1 !== p2){ resetMsg('error', 'Kata sandi baru dan ulangannya tidak sama.'); return; }
+    resetMsg('info', 'Menyimpan kata sandi baru...');
+    resetSubmitBtn.disabled = true;
+    try{
+      const id = resetIdInput.value.trim();
+      const r = await postJson({ action: 'confirmPasswordReset', nisn: id, role: activeRoleKey(), otp: otp, newPassword: p1 });
+      if(r.status === 'success'){
+        exitReset();
+        idInput.value = id; passInput.value = '';
+        showInfo('Kata sandi berhasil diubah. Silakan masuk dengan kata sandi baru.');
+        passInput.focus();
+      } else {
+        resetMsg('error', r.message || 'Gagal mengubah kata sandi.');
+      }
+    }catch(err){
+      console.error(err);
+      resetMsg('error', 'Gagal terhubung ke server. Periksa koneksi internet.');
+    }finally{ resetSubmitBtn.disabled = false; }
+  }
+
+  forgotLink.addEventListener('click', (e) => { e.preventDefault(); enterReset(); });
+  document.getElementById('backToLogin').addEventListener('click', exitReset);
+  resendBtn.addEventListener('click', sendResetCode);
+  resetSubmitBtn.addEventListener('click', () => resetStep === 2 ? confirmReset() : sendResetCode());
+  document.getElementById('resetForm').addEventListener('submit', (e) => e.preventDefault());
+  [resetIdInput, otpInput, newPassInput, newPassInput2].forEach(el => el.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); resetSubmitBtn.click(); }
+  }));
+  otpInput.addEventListener('input', () => { otpInput.value = otpInput.value.replace(/\D/g, ''); });
+  // Ganti tab peran saat mode reset -> kembali ke form masuk agar peran & ID tidak tertukar.
+  tabs.forEach(t => t.addEventListener('click', () => { if(resetPanel.style.display === 'flex') exitReset(); }));
 
   submitBtn.addEventListener('click', handleLogin);
   document.getElementById('loginForm').addEventListener('submit', (e) => e.preventDefault());
