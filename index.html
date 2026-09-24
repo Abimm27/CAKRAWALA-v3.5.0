@@ -547,6 +547,40 @@
   }
   .tp-confirm:hover { background: #32463e; }
 
+  /* --- FORM USULAN PEMINDAHAN (admin) & FIELD JAM BERDAMPINGAN --- */
+  .form-group .dt-display, .form-group .tp-display { padding-right: 40px; }
+  .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-box .dt-panel { width: 100%; min-width: 264px; max-width: none; }
+  .tp-field.tp-align-right .tp-panel { left: auto; right: 0; }
+  .dt-field.drop-up .dt-panel, .tp-field.drop-up .tp-panel { top: auto; bottom: calc(100% + 8px); }
+
+  .usulan-box {
+    background: rgba(232,185,78,0.10);
+    border: 1px solid rgba(199,154,58,0.35);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .usulan-sub { margin-top: 4px; padding-top: 16px; border-top: 1px dashed rgba(31,59,50,0.18); }
+  .field-hint { font-size: 11.5px; color: var(--ink-soft); margin-top: 5px; line-height: 1.4; }
+
+  /* Toggle switch (pengganti checkbox bawaan browser) */
+  .switch-row { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+  .switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .switch-track {
+    position: relative; flex: 0 0 auto; width: 42px; height: 24px; border-radius: 999px;
+    background: rgba(31,59,50,0.22); transition: background 0.2s ease;
+  }
+  .switch-thumb {
+    position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform 0.2s ease;
+  }
+  .switch-input:checked + .switch-track { background: var(--ink); }
+  .switch-input:checked + .switch-track .switch-thumb { transform: translateX(18px); }
+  .switch-input:focus-visible + .switch-track { outline: 2px solid var(--chalk-gold-dim); outline-offset: 2px; }
+  .switch-text strong { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+  .switch-text small { display: block; font-size: 12px; color: var(--ink-soft); line-height: 1.4; margin-top: 2px; }
+
   /* --- INFO CALLOUT (dipakai di modal detail reservasi saya) --- */
   .info-callout {
     margin-top: 4px; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5;
@@ -988,16 +1022,53 @@
         <div id="directFieldsWrap">
           <div class="form-group">
             <label>Tanggal</label>
-            <input type="date" id="eventTanggal" required>
-          </div>
-          <div style="display:flex; gap:16px;">
-            <div class="form-group" style="flex:1;">
-              <label>Jam Mulai</label>
-              <input type="time" id="eventJamMulai" required>
+            <div class="dt-field" id="eventTanggalField">
+              <input type="text" id="eventTanggalDisplay" class="dt-display" placeholder="Pilih tanggal" readonly>
+              <input type="text" id="eventTanggal" hidden tabindex="-1">
+              <span class="dt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>
+              <div class="dt-panel" id="eventTanggalPanel">
+                <div class="dt-panel-head">
+                  <button type="button" class="dt-nav" data-nav="-1">‹</button>
+                  <span class="dt-month-label">—</span>
+                  <button type="button" class="dt-nav" data-nav="1">›</button>
+                </div>
+                <div class="dt-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                <div class="dt-days"></div>
+                <div class="dt-footer">
+                  <button type="button" id="eventTanggalClear">Clear</button>
+                  <button type="button" id="eventTanggalToday">Hari ini</button>
+                </div>
+              </div>
             </div>
-            <div class="form-group" style="flex:1;">
+          </div>
+          <div class="time-row">
+            <div class="form-group">
+              <label>Jam Mulai</label>
+              <div class="tp-field" id="eventJamMulaiField">
+                <input type="text" id="eventJamMulai" class="tp-display" placeholder="--:--" readonly>
+                <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+                <div class="tp-panel" id="eventJamMulaiPanel">
+                  <div class="tp-cols">
+                    <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                    <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+                  </div>
+                  <button type="button" class="tp-confirm">Pilih</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
               <label>Jam Selesai</label>
-              <input type="time" id="eventJamSelesai" required>
+              <div class="tp-field tp-align-right" id="eventJamSelesaiField">
+                <input type="text" id="eventJamSelesai" class="tp-display" placeholder="--:--" readonly>
+                <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+                <div class="tp-panel" id="eventJamSelesaiPanel">
+                  <div class="tp-cols">
+                    <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                    <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+                  </div>
+                  <button type="button" class="tp-confirm">Pilih</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1014,34 +1085,83 @@
         </div>
 
         <!-- Hanya muncul saat mode "Pindahkan" untuk reservasi milik Siswa/Guru (bukan event buatan Admin sendiri). -->
-        <div class="form-group" id="mintaKonfirmasiWrap" style="display:none; background: rgba(212,163,58,0.08); padding:12px; border-radius:10px;">
-          <label style="display:flex; align-items:flex-start; gap:8px; font-weight:500; cursor:pointer;">
-            <input type="checkbox" id="mintaKonfirmasiCheckbox" style="margin-top:3px;">
-            <span>Minta konfirmasi pengaju dulu (opsional) — jelaskan ada jadwal lain yang lebih prioritas, beri sugesti tanggal (jam opsional), lalu pengaju yang memilih Terima/Tolak.</span>
+        <div class="usulan-box" id="mintaKonfirmasiWrap" style="display:none;">
+          <label class="switch-row">
+            <input type="checkbox" id="mintaKonfirmasiCheckbox" class="switch-input">
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span class="switch-text">
+              <strong>Minta konfirmasi pengaju dulu</strong>
+              <small>Pengaju yang memilih Terima atau Tolak.</small>
+            </span>
           </label>
 
-          <div id="usulanFieldsWrap" style="display:none; margin-top:12px;">
+          <div id="usulanFieldsWrap" style="display:none; margin-top:16px;">
             <div class="form-group">
-              <label>Alasan / penjelasan prioritas (akan ditampilkan ke pengaju)</label>
+              <label>Alasan pemindahan</label>
               <textarea id="alasanPindahInput" rows="3" placeholder="Contoh: Tanggal &amp; jam tersebut dibutuhkan untuk kegiatan sekolah yang lebih prioritas."></textarea>
+              <p class="field-hint">Akan ditampilkan ke pengaju.</p>
             </div>
             <div class="form-group">
-              <label>Tanggal sugesti pengganti</label>
-              <input type="date" id="usulanTanggalInput">
-            </div>
-            <label style="display:flex; align-items:flex-start; gap:8px; font-weight:500; cursor:pointer; margin-bottom:6px;">
-              <input type="checkbox" id="sertakanJamUsulanCheckbox" style="margin-top:3px;">
-              <span>Sertakan jam tertentu juga (opsional) — centang kalau di tanggal itu ada reservasi lain pada rentang jam tertentu yang perlu dihindari. Kosongkan supaya pengaju bebas memilih jamnya sendiri.</span>
-            </label>
-            <div id="usulanJamWrap" style="display:none; gap:16px; margin-top:4px;">
-              <div style="display:flex; gap:16px;">
-                <div class="form-group" style="flex:1;">
-                  <label>Jam Mulai Sugesti</label>
-                  <input type="time" id="usulanJamMulaiInput">
+              <label>Tanggal usulan pengganti</label>
+              <div class="dt-field" id="usulanTanggalField">
+                <input type="text" id="usulanTanggalDisplay" class="dt-display" placeholder="Pilih tanggal" readonly>
+                <input type="text" id="usulanTanggalInput" hidden tabindex="-1">
+                <span class="dt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>
+                <div class="dt-panel" id="usulanTanggalPanel">
+                  <div class="dt-panel-head">
+                    <button type="button" class="dt-nav" data-nav="-1">‹</button>
+                    <span class="dt-month-label">—</span>
+                    <button type="button" class="dt-nav" data-nav="1">›</button>
+                  </div>
+                  <div class="dt-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                  <div class="dt-days"></div>
+                  <div class="dt-footer">
+                    <button type="button" id="usulanTanggalClear">Clear</button>
+                    <button type="button" id="usulanTanggalToday">Hari ini</button>
+                  </div>
                 </div>
-                <div class="form-group" style="flex:1;">
-                  <label>Jam Selesai Sugesti</label>
-                  <input type="time" id="usulanJamSelesaiInput">
+              </div>
+            </div>
+
+            <div class="usulan-sub">
+              <label class="switch-row">
+                <input type="checkbox" id="sertakanJamUsulanCheckbox" class="switch-input">
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+                <span class="switch-text">
+                  <strong>Tentukan jam usulan</strong>
+                  <small>Nonaktif = pengaju bebas memilih jam sendiri.</small>
+                </span>
+              </label>
+              <div id="usulanJamWrap" style="display:none; margin-top:14px;">
+                <div class="time-row">
+                  <div class="form-group">
+                    <label>Jam Mulai</label>
+                    <div class="tp-field" id="usulanJamMulaiField">
+                      <input type="text" id="usulanJamMulaiInput" class="tp-display" placeholder="--:--" readonly>
+                      <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+                      <div class="tp-panel" id="usulanJamMulaiPanel">
+                        <div class="tp-cols">
+                          <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                          <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+                        </div>
+                        <button type="button" class="tp-confirm">Pilih</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Jam Selesai</label>
+                    <div class="tp-field tp-align-right" id="usulanJamSelesaiField">
+                      <input type="text" id="usulanJamSelesaiInput" class="tp-display" placeholder="--:--" readonly>
+                      <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+                      <div class="tp-panel" id="usulanJamSelesaiPanel">
+                        <div class="tp-cols">
+                          <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                          <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+                        </div>
+                        <button type="button" class="tp-confirm">Pilih</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1061,20 +1181,57 @@
       </button>
       <span class="modal-eyebrow">Reservasi Saya</span>
       <h3>Konfirmasi Tanggal &amp; Jam Pemindahan</h3>
-      <p style="font-size:13px; color: var(--ink-soft); margin: 8px 0 0;">Sudah diisi sesuai sugesti admin (kalau ada). Ubah kalau kamu mau pindah ke tanggal/jam lain.</p>
+      <p style="font-size:13px; color: var(--ink-soft); margin: 8px 0 0;">Sudah diisi sesuai usulan admin (kalau ada). Ubah kalau kamu mau pindah ke tanggal/jam lain.</p>
 
       <div class="form-group" style="margin-top: 14px;">
         <label>Tanggal</label>
-        <input type="date" id="pindahFinalTanggal">
-      </div>
-      <div style="display:flex; gap:16px;">
-        <div class="form-group" style="flex:1;">
-          <label>Jam Mulai</label>
-          <input type="time" id="pindahFinalJamMulai">
+        <div class="dt-field" id="pindahFinalTanggalField">
+          <input type="text" id="pindahFinalTanggalDisplay" class="dt-display" placeholder="Pilih tanggal" readonly>
+          <input type="text" id="pindahFinalTanggal" hidden tabindex="-1">
+          <span class="dt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>
+          <div class="dt-panel" id="pindahFinalTanggalPanel">
+            <div class="dt-panel-head">
+              <button type="button" class="dt-nav" data-nav="-1">‹</button>
+              <span class="dt-month-label">—</span>
+              <button type="button" class="dt-nav" data-nav="1">›</button>
+            </div>
+            <div class="dt-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+            <div class="dt-days"></div>
+            <div class="dt-footer">
+              <button type="button" id="pindahFinalTanggalClear">Clear</button>
+              <button type="button" id="pindahFinalTanggalToday">Hari ini</button>
+            </div>
+          </div>
         </div>
-        <div class="form-group" style="flex:1;">
+      </div>
+      <div class="time-row">
+        <div class="form-group">
+          <label>Jam Mulai</label>
+          <div class="tp-field" id="pindahFinalJamMulaiField">
+            <input type="text" id="pindahFinalJamMulai" class="tp-display" placeholder="--:--" readonly>
+            <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+            <div class="tp-panel" id="pindahFinalJamMulaiPanel">
+              <div class="tp-cols">
+                <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+              </div>
+              <button type="button" class="tp-confirm">Pilih</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
           <label>Jam Selesai</label>
-          <input type="time" id="pindahFinalJamSelesai">
+          <div class="tp-field tp-align-right" id="pindahFinalJamSelesaiField">
+            <input type="text" id="pindahFinalJamSelesai" class="tp-display" placeholder="--:--" readonly>
+            <span class="tp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+            <div class="tp-panel" id="pindahFinalJamSelesaiPanel">
+              <div class="tp-cols">
+                <div class="tp-col-wrap"><div class="tp-col-label">Jam</div><div class="tp-col" data-role="hour"></div></div>
+                <div class="tp-col-wrap"><div class="tp-col-label">Menit</div><div class="tp-col" data-role="minute"></div></div>
+              </div>
+              <button type="button" class="tp-confirm">Pilih</button>
+            </div>
+          </div>
         </div>
       </div>
       <div style="display:flex; gap:12px; margin-top: 8px;">
@@ -1264,8 +1421,8 @@
             Admin mengusulkan pemindahan jadwal ini karena ada jadwal lain yang lebih prioritas pada tanggal/jam tersebut.
           </p>
           <p style="font-size:13.5px; margin:0 0 4px;"><strong>Alasan admin:</strong> <span id="myResAlasanPindah">-</span></p>
-          <p style="font-size:13.5px; margin:0 0 12px;"><strong>Sugesti tanggal pengganti:</strong> <span id="myResJadwalUsulan">-</span></p>
-          <p style="font-size:12.5px; color: var(--ink-soft); margin:0 0 12px;">Kalau kamu pilih <strong>Terima</strong>, kamu akan diminta konfirmasi tanggal &amp; jam pemindahannya (boleh pakai sugesti admin atau pilih sendiri).</p>
+          <p style="font-size:13.5px; margin:0 0 12px;"><strong>Usulan tanggal pengganti:</strong> <span id="myResJadwalUsulan">-</span></p>
+          <p style="font-size:12.5px; color: var(--ink-soft); margin:0 0 12px;">Kalau kamu pilih <strong>Terima</strong>, kamu akan diminta konfirmasi tanggal &amp; jam pemindahannya (boleh pakai usulan admin atau pilih sendiri).</p>
           <div style="display:flex; gap:10px;">
             <button id="myResBtnSetujuPindah" class="btn-sm btn-approve" style="flex:1; padding:10px; font-size:13px;" type="button">Terima</button>
             <button id="myResBtnTolakPindah" class="btn-sm btn-reject" style="flex:1; padding:10px; font-size:13px;" type="button">Tolak</button>
@@ -1842,7 +1999,7 @@
           document.getElementById('myResAlasanPindah').textContent = data.pindahProposal.alasanPindah || '(tidak dicantumkan)';
 
           const proposal = data.pindahProposal;
-          let jadwalUsulanText = proposal.tanggalSugesti ? formatReadableDate(proposal.tanggalSugesti) : '(tidak ada sugesti tanggal spesifik)';
+          let jadwalUsulanText = proposal.tanggalSugesti ? formatReadableDate(proposal.tanggalSugesti) : '(tidak ada usulan tanggal spesifik)';
           if (proposal.tanggalSugesti) {
             jadwalUsulanText += (proposal.jamMulaiSugesti && proposal.jamSelesaiSugesti)
               ? (', ' + proposal.jamMulaiSugesti + ' - ' + proposal.jamSelesaiSugesti)
@@ -1859,7 +2016,7 @@
 
       // ================== FINALISASI PEMINDAHAN: pengaju pilih/konfirmasi tanggal & jam sendiri ==================
       // Dibuka saat pengaju menekan "Terima" pada usulan pemindahan. Field tanggal/jam sudah
-      // diisi otomatis sesuai sugesti admin (kalau ada), tapi pengaju BEBAS mengubahnya ke
+      // diisi otomatis sesuai usulan admin (kalau ada), tapi pengaju BEBAS mengubahnya ke
       // tanggal/jam lain yang lebih cocok untuk mereka.
       let finalizingDocId = null;
 
@@ -1870,9 +2027,7 @@
 
         const proposal = data.pindahProposal;
         const todayStr = formatDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-        const tanggalField = document.getElementById('pindahFinalTanggal');
-        tanggalField.min = todayStr;
-        tanggalField.value = (proposal.tanggalSugesti && proposal.tanggalSugesti >= todayStr) ? proposal.tanggalSugesti : '';
+        setDateField('pindahFinalTanggal', (proposal.tanggalSugesti && proposal.tanggalSugesti >= todayStr) ? proposal.tanggalSugesti : '');
         document.getElementById('pindahFinalJamMulai').value = proposal.jamMulaiSugesti || '';
         document.getElementById('pindahFinalJamSelesai').value = proposal.jamSelesaiSugesti || '';
 
@@ -1941,14 +2096,14 @@
         if (aksi !== 'batal') return;
 
         const proposal = data.pindahProposal;
-        let jadwalSugestiText = '(tidak ada sugesti tanggal)';
+        let jadwalSugestiText = '(tidak ada usulan tanggal)';
         if (proposal.tanggalSugesti) {
           jadwalSugestiText = proposal.tanggalSugesti;
           jadwalSugestiText += (proposal.jamMulaiSugesti && proposal.jamSelesaiSugesti)
             ? (', ' + proposal.jamMulaiSugesti + ' - ' + proposal.jamSelesaiSugesti)
             : ' (jam bebas dipilih sendiri)';
         }
-        const alasanBatal = 'Pengaju memilih membatalkan reservasi karena tidak bisa pindah. Sugesti admin: ' + jadwalSugestiText + '. Alasan admin: ' + (proposal.alasanPindah || '-');
+        const alasanBatal = 'Pengaju memilih membatalkan reservasi karena tidak bisa pindah. Usulan admin: ' + jadwalSugestiText + '. Alasan admin: ' + (proposal.alasanPindah || '-');
 
         const yakin = confirm('Batalkan reservasi ini? Kamu tidak akan bisa dipindah ke jadwal lain lagi setelah ini.');
         if(!yakin) return;
@@ -2462,17 +2617,28 @@
         }
       }
 
-      // Batasi date-picker browser (form Admin, masih pakai <input type="date"> bawaan) agar tidak bisa pilih tanggal sebelum hari ini.
-      (function restrictPastDates(){
-        const todayStr = formatDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-        const eventTanggalEl = document.getElementById('eventTanggal');
-        if(eventTanggalEl) eventTanggalEl.min = todayStr;
-        const usulanTanggalEl = document.getElementById('usulanTanggalInput');
-        if(usulanTanggalEl) usulanTanggalEl.min = todayStr;
-      })();
-
       // ================== KOMPONEN: CUSTOM DATE PICKER (form reservasi Siswa/Guru) ==================
       // Tampilan kalender custom bergaya sekolah (bukan date-picker bawaan browser), tanggal lampau otomatis dikunci.
+      // Buka panel ke atas kalau ruang di bawah field tidak cukup (mis. field ada di dasar modal).
+      function autoPlacePanel(field, panel){
+        field.classList.remove('drop-up');
+        const r = field.getBoundingClientRect();
+        const box = field.closest('.modal-box');
+        const boxRect = box ? box.getBoundingClientRect() : null;
+        const ph = panel.offsetHeight || 260;
+        const spaceBelow = Math.min(boxRect ? boxRect.bottom : Infinity, window.innerHeight) - r.bottom;
+        const spaceAbove = r.top - Math.max(boxRect ? boxRect.top : 0, 0);
+        if(spaceBelow < ph + 12 && spaceAbove > spaceBelow) field.classList.add('drop-up');
+      }
+
+      // Set nilai date picker custom lewat kode (mengisi nilai ISO + teks tampilan yang mudah dibaca).
+      function setDateField(rawId, val){
+        const el = document.getElementById(rawId);
+        if(!el) return;
+        el.value = val || '';
+        if(typeof el._syncDisplay === 'function') el._syncDisplay();
+      }
+
       function setupDatePicker(opts){
         const field = document.getElementById(opts.fieldId);
         const display = document.getElementById(opts.displayId);
@@ -2525,6 +2691,7 @@
           viewMonth = base.getMonth();
           renderPanel();
           field.classList.add('open');
+          autoPlacePanel(field, panel);
           setTimeout(() => document.addEventListener('click', outsideClickHandler), 0);
         }
         function closePanel(){
@@ -2542,6 +2709,7 @@
         btnNext.addEventListener('click', () => { viewMonth++; if(viewMonth > 11){ viewMonth = 0; viewYear++; } renderPanel(); });
         if(btnClear) btnClear.addEventListener('click', () => { raw.value = ''; display.value = ''; closePanel(); });
         if(btnToday) btnToday.addEventListener('click', () => selectDate(todayStr));
+        raw._syncDisplay = function(){ display.value = raw.value ? formatReadableDate(raw.value) : ''; };
       }
 
       // ================== KOMPONEN: CUSTOM TIME PICKER (form reservasi Siswa/Guru) ==================
@@ -2594,8 +2762,13 @@
             selMinute = closestM;
             markSelected(hourCol, h);
             markSelected(minuteCol, closestM);
+          } else {
+            selHour = null; selMinute = null;
+            hourCol.querySelectorAll('.tp-option').forEach(o => o.classList.remove('tp-selected'));
+            minuteCol.querySelectorAll('.tp-option').forEach(o => o.classList.remove('tp-selected'));
           }
           field.classList.add('open');
+          autoPlacePanel(field, panel);
           setTimeout(() => document.addEventListener('click', outsideClickHandler), 0);
         }
         function closePanel(){
@@ -2622,6 +2795,22 @@
       setupDatePicker({ fieldId: 'tanggalField', displayId: 'tanggalInput', rawId: 'tanggalInputRaw', panelId: 'tanggalPanel', clearId: 'tanggalClear', todayId: 'tanggalToday' });
       setupTimePicker({ fieldId: 'jamMulaiField', displayId: 'jamMulaiInput', panelId: 'jamMulaiPanel' });
       setupTimePicker({ fieldId: 'jamSelesaiField', displayId: 'jamSelesaiInput', panelId: 'jamSelesaiPanel' });
+
+      // Picker custom untuk form Admin (Tambah/Pindahkan/Usulan) & modal finalisasi pemindahan pengaju.
+      [
+        ['eventTanggal', 'eventTanggalDisplay', 'eventTanggal'],
+        ['usulanTanggal', 'usulanTanggalDisplay', 'usulanTanggalInput'],
+        ['pindahFinalTanggal', 'pindahFinalTanggalDisplay', 'pindahFinalTanggal']
+      ].forEach(([prefix, displayId, rawId]) => {
+        setupDatePicker({ fieldId: prefix + 'Field', displayId: displayId, rawId: rawId, panelId: prefix + 'Panel', clearId: prefix + 'Clear', todayId: prefix + 'Today' });
+      });
+      [
+        ['eventJamMulai', 'eventJamMulai'], ['eventJamSelesai', 'eventJamSelesai'],
+        ['usulanJamMulai', 'usulanJamMulaiInput'], ['usulanJamSelesai', 'usulanJamSelesaiInput'],
+        ['pindahFinalJamMulai', 'pindahFinalJamMulai'], ['pindahFinalJamSelesai', 'pindahFinalJamSelesai']
+      ].forEach(([prefix, displayId]) => {
+        setupTimePicker({ fieldId: prefix + 'Field', displayId: displayId, panelId: prefix + 'Panel' });
+      });
 
       // ================== FITUR: TITIK WARNA PENANDA KELAS DI KALENDER ==================
       // Menentukan warna titik berdasarkan kolom "kelas" di database User (disimpan ke tiap reservasi saat diajukan).
@@ -2911,24 +3100,18 @@
       const usulanJamSelesaiInput = document.getElementById('usulanJamSelesaiInput');
 
       // Toggle utama: checkbox "Minta konfirmasi pengaju dulu" -- OFF = pindah langsung (field tanggal/jam
-      // biasa dipakai), ON = kirim usulan (field tanggal/jam biasa disembunyikan, ganti ke field sugesti).
+      // biasa dipakai), ON = kirim usulan (field tanggal/jam biasa disembunyikan, ganti ke field usulan).
       mintaKonfirmasiCheckbox.addEventListener('change', () => {
         const usulanMode = mintaKonfirmasiCheckbox.checked;
         usulanFieldsWrap.style.display = usulanMode ? 'block' : 'none';
         directFieldsWrap.style.display = usulanMode ? 'none' : 'block';
-        // Field tanggal/jam langsung tidak wajib diisi saat mode usulan aktif (tersembunyi & tidak dipakai).
-        document.getElementById('eventTanggal').required = !usulanMode;
-        document.getElementById('eventJamMulai').required = !usulanMode;
-        document.getElementById('eventJamSelesai').required = !usulanMode;
         eventFormSubmit.textContent = usulanMode ? 'Kirim Usulan Pemindahan' : 'Simpan Perubahan';
       });
 
       // Sub-toggle: checkbox "Sertakan jam tertentu juga" di dalam blok usulan.
       sertakanJamUsulanCheckbox.addEventListener('change', () => {
         const tampilkan = sertakanJamUsulanCheckbox.checked;
-        usulanJamWrap.style.display = tampilkan ? 'flex' : 'none';
-        usulanJamMulaiInput.required = tampilkan;
-        usulanJamSelesaiInput.required = tampilkan;
+        usulanJamWrap.style.display = tampilkan ? 'block' : 'none';
         if (!tampilkan) {
           usulanJamMulaiInput.value = '';
           usulanJamSelesaiInput.value = '';
@@ -2940,18 +3123,12 @@
         mintaKonfirmasiCheckbox.checked = false;
         usulanFieldsWrap.style.display = 'none';
         alasanPindahInput.value = '';
-        usulanTanggalInput.value = '';
-        usulanTanggalInput.required = false;
+        setDateField('usulanTanggalInput', '');
         sertakanJamUsulanCheckbox.checked = false;
         usulanJamWrap.style.display = 'none';
         usulanJamMulaiInput.value = '';
-        usulanJamMulaiInput.required = false;
         usulanJamSelesaiInput.value = '';
-        usulanJamSelesaiInput.required = false;
         directFieldsWrap.style.display = 'block';
-        document.getElementById('eventTanggal').required = true;
-        document.getElementById('eventJamMulai').required = true;
-        document.getElementById('eventJamSelesai').required = true;
       }
 
       // Field Keperluan & Peminjam/Penyelenggara TIDAK BOLEH diubah saat mode Pindahkan (hanya
@@ -2999,7 +3176,7 @@
         setKeperluanPeminjamLocked(false);
         resetMintaKonfirmasiUI();
         if (selectedDateForAdd) {
-          document.getElementById('eventTanggal').value = selectedDateForAdd;
+          setDateField('eventTanggal', selectedDateForAdd);
         }
         eventFormModal.classList.add('show');
       });
@@ -3012,7 +3189,7 @@
         eventFormTitle.textContent = 'Ubah Tanggal / Jam Jadwal';
         eventFormSubmit.textContent = 'Simpan Perubahan';
 
-        document.getElementById('eventTanggal').value = data.tanggal || '';
+        setDateField('eventTanggal', data.tanggal || '');
         document.getElementById('eventJamMulai').value = data.jamMulai || '';
         document.getElementById('eventJamSelesai').value = data.jamSelesai || '';
         eventKeperluanInput.value = data.keperluan || '';
@@ -3037,7 +3214,7 @@
       // Submit form: mode Tambah (add doc baru berstatus approved), mode Pindahkan langsung (update doc yang
       // Submit form: mode Tambah (add doc baru berstatus approved), mode Pindahkan langsung (update
       // tanggal/jam saja -- keperluan & peminjam TIDAK ikut berubah), atau mode Usulan Pindah (kirim
-      // sugesti tanggal + alasan ke pengaju, jam sugesti opsional, jadwal asli belum berubah).
+      // usulan tanggal + alasan ke pengaju, jam usulan opsional, jadwal asli belum berubah).
       eventForm.addEventListener('submit', async function(e){
         e.preventDefault();
 
@@ -3054,7 +3231,7 @@
           const tanggalSugesti = usulanTanggalInput.value;
           const todayStr = formatDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
           if (!tanggalSugesti || tanggalSugesti < todayStr) {
-            alert('Tanggal sugesti wajib diisi dan tidak boleh tanggal yang sudah lewat.');
+            alert('Tanggal usulan wajib diisi dan tidak boleh tanggal yang sudah lewat.');
             return;
           }
 
@@ -3065,11 +3242,11 @@
             jamMulaiSugesti = usulanJamMulaiInput.value;
             jamSelesaiSugesti = usulanJamSelesaiInput.value;
             if (!jamMulaiSugesti || !jamSelesaiSugesti) {
-              alert('Jam mulai & jam selesai sugesti wajib diisi kalau "Sertakan jam tertentu" dicentang (atau uncheck saja kalau tidak perlu spesifik jam).');
+              alert('Jam mulai & jam selesai usulan wajib diisi kalau "Tentukan jam usulan" diaktifkan (atau matikan saja kalau tidak perlu spesifik jam).');
               return;
             }
             if (jamSelesaiSugesti <= jamMulaiSugesti) {
-              alert('Jam selesai sugesti harus lebih besar dari jam mulai.');
+              alert('Jam selesai usulan harus lebih besar dari jam mulai.');
               return;
             }
             const cekBentrokUsulan = await checkTimeConflict(tanggalSugesti, jamMulaiSugesti, jamSelesaiSugesti, editingEventId);
