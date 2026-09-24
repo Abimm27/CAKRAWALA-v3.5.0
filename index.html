@@ -1595,6 +1595,7 @@
 
       document.getElementById('logoutBtn').addEventListener('click', function() {
         document.documentElement.classList.add('auth-pending');
+        stopRealtime();
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         localStorage.removeItem('userKelas');
@@ -1890,11 +1891,11 @@
       let myReservationsCache = {};
 
       // Muat SEMUA reservasi milik akun yang sedang login, status apapun (pending/approved/rejected/dibatalkan).
-      async function loadMyReservations() {
+      async function loadMyReservations(silent) {
         const container = document.getElementById('myReservationsContainer');
         if(!container) return;
 
-        container.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--ink-soft);">Memuat reservasi kamu...</td></tr>';
+        if (!silent) container.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--ink-soft);">Memuat reservasi kamu...</td></tr>';
 
         try {
           const identitas = savedName || savedRole;
@@ -2925,12 +2926,16 @@
         return data;
       }
 
-      async function renderCalendar(year, month){
+      async function renderCalendar(year, month, silent){
         const grid = document.getElementById('calGrid');
         document.getElementById('calMonthLabel').textContent = `${monthNames[month]} ${year}`;
-        grid.innerHTML = '<div class="cal-loading">Memuat kalender dari database...</div>';
+        if (!silent) {
+          grid.innerHTML = '<div class="cal-loading">Memuat kalender dari database...</div>';
+          watchCalendarMonth(year, month); // pantau perubahan data untuk bulan yang sedang tampil
+        }
 
         const monthData = await fetchCalendarDataFromFirestore(year, month);
+        if (silent && (year !== currentYear || month !== currentMonth)) return; // user sudah pindah bulan
         currentMonthData = monthData;
 
         const firstDay = new Date(year, month, 1).getDay();
@@ -3108,6 +3113,81 @@
         if(currentMonth > 11){ currentMonth = 0; currentYear++; }
         renderCalendar(currentYear, currentMonth);
       });
+
+      // ================== REALTIME: DATA UPDATE OTOMATIS TANPA REFRESH ==================
+      // Query di bawah sama persis dengan query yang sudah dipakai fungsi load*() (jadi lolos Firestore
+      // Rules yang sama). Listener hanya jadi "pemicu": begitu ada dokumen reservasi yang berubah, tabel /
+      // kalender yang SEDANG TAMPIL dimuat ulang diam-diam (tanpa tulisan "Memuat..." supaya tidak berkedip).
+      let rtUnsubs = [];
+      let rtCalUnsub = null;
+      let rtTimer = null;
+      const rtBaseTitle = document.title;
+
+      function isShown(id) {
+        const el = document.getElementById(id);
+        return !!el && el.offsetParent !== null;
+      }
+
+      function refreshVisibleData() {
+        if (isShown('adminRequestsContainer')) loadAdminRequests();
+        if (isShown('adminApprovedContainer')) loadAdminApprovedSchedules();
+        if (isShown('approvedSchedulesContainer')) loadApprovedSchedules();
+        if (isShown('myReservationsContainer')) loadMyReservations(true);
+        if (isShown('calGrid')) renderCalendar(currentYear, currentMonth, true);
+      }
+
+      function scheduleRefresh() {
+        clearTimeout(rtTimer);
+        rtTimer = setTimeout(refreshVisibleData, 400); // gabungkan beberapa perubahan beruntun jadi satu refresh
+      }
+
+      function watchQuery(query, onSnap) {
+        let first = true; // snapshot pertama = data awal yang sudah dimuat load*(), tidak perlu refresh
+        return query.onSnapshot(function(snap) {
+          if (onSnap) onSnap(snap);
+          if (first) { first = false; return; }
+          scheduleRefresh();
+        }, function(err) {
+          console.warn('[realtime] listener berhenti:', err && err.code);
+        });
+      }
+
+      function watchCalendarMonth(year, month) {
+        if (rtCalUnsub) { try { rtCalUnsub(); } catch (e) {} rtCalUnsub = null; }
+        const start = formatDateKey(year, month, 1);
+        const end = formatDateKey(year, month, new Date(year, month + 1, 0).getDate());
+        rtCalUnsub = watchQuery(db.collection('reservasi').where('tanggal', '>=', start).where('tanggal', '<=', end));
+      }
+
+      function stopRealtime() {
+        rtUnsubs.forEach(function(u) { try { u(); } catch (e) {} });
+        rtUnsubs = [];
+        if (rtCalUnsub) { try { rtCalUnsub(); } catch (e) {} rtCalUnsub = null; }
+        clearTimeout(rtTimer);
+      }
+
+      function startRealtime() {
+        stopRealtime();
+        const col = db.collection('reservasi');
+        if (isAdmin) {
+          // Judul tab menampilkan jumlah permohonan menunggu, mis. "(2) Portal ...", supaya admin tahu
+          // ada yang masuk walau tab sedang tidak dilihat.
+          rtUnsubs.push(watchQuery(col.where('status', '==', 'pending'), function(snap) {
+            document.title = (snap.size > 0 ? '(' + snap.size + ') ' : '') + rtBaseTitle;
+          }));
+          rtUnsubs.push(watchQuery(col.where('status', '==', 'approved').orderBy('tanggal', 'asc')));
+        } else {
+          rtUnsubs.push(watchQuery(col.where('status', '==', 'approved').orderBy('tanggal', 'asc')));
+          rtUnsubs.push(watchQuery(col.where('peminjam', '==', savedName || savedRole)));
+        }
+      }
+
+      // Tab dibuka lagi setelah lama di background / laptop sleep -> sinkronkan sekali.
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) refreshVisibleData();
+      });
+
+      startRealtime();
 
       // ================== FITUR ADMIN: TAMBAH EVENT & PINDAHKAN JADWAL ==================
       const eventFormModal = document.getElementById('eventFormModal');
