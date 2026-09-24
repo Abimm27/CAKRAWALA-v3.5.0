@@ -552,6 +552,9 @@
   .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-box .dt-panel { width: 100%; min-width: 264px; max-width: none; }
   .tp-field.tp-align-right .tp-panel { left: auto; right: 0; }
+  /* Modal pendek: beri ruang supaya panel kalender/jam tidak terpotong saat terbuka. */
+  #pindahFinalizeModal .modal-box:has(.dt-field.open) { padding-bottom: 330px; }
+  #pindahFinalizeModal .modal-box:has(.tp-field.open) { padding-bottom: 260px; }
   .dt-field.drop-up .dt-panel, .tp-field.drop-up .tp-panel { top: auto; bottom: calc(100% + 8px); }
 
   .usulan-box {
@@ -2629,6 +2632,7 @@
         const spaceBelow = Math.min(boxRect ? boxRect.bottom : Infinity, window.innerHeight) - r.bottom;
         const spaceAbove = r.top - Math.max(boxRect ? boxRect.top : 0, 0);
         if(spaceBelow < ph + 12 && spaceAbove > spaceBelow) field.classList.add('drop-up');
+        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
 
       // Set nilai date picker custom lewat kode (mengisi nilai ISO + teks tampilan yang mudah dibaca).
