@@ -468,7 +468,7 @@
       <div class="card-head" id="cardHead">
         <span class="role-tag" id="roleTag">Portal Siswa</span>
         <h2 id="cardTitle">Masuk ke akun kamu</h2>
-        <p id="cardSub">Gunakan NISN yang terdaftar di sekolah.</p>
+        <p id="cardSub">Masukkan 4 digit terakhir NIS kamu.</p>
       </div>
 
       <form id="loginForm" novalidate>
@@ -476,7 +476,7 @@
         <div class="info-msg" id="infoMsg">Memverifikasi data ke database sekolah...</div>
 
         <div class="field">
-          <label id="idLabel" for="idInput">NISN / Nomor Induk Siswa</label>
+          <label id="idLabel" for="idInput">NIS</label>
           <div class="field-input">
             <input type="text" id="idInput" placeholder="Contoh: 0091234567" autocomplete="username">
           </div>
@@ -514,7 +514,7 @@
 
         <form id="resetForm" novalidate>
           <div class="field" id="resetIdField">
-            <label id="resetIdLabel" for="resetIdInput">NISN / Nomor Induk Siswa</label>
+            <label id="resetIdLabel" for="resetIdInput">NIS</label>
             <div class="field-input"><input type="text" id="resetIdInput" autocomplete="username"></div>
           </div>
 
@@ -597,7 +597,7 @@
 
   // =======================================================================
   // KONEKSI DATABASE (Google Apps Script)
-  // Endpoint ini yang memverifikasi NISN/NIP/ID Admin ke Google Sheet.
+  // Endpoint ini yang memverifikasi NIS/ID Guru/ID Admin ke Google Sheet.
   // Diambil dari implementasi index.html kamu yang sudah berjalan.
   // =======================================================================
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLWDhbNvGNWn-hXsWaEkL0y9DbdAxK7vOdfsf3uuPAqMZx7mQWCo-X4ich5MsluYME/exec";
@@ -606,9 +606,9 @@
     siswa: {
       tag: "Portal Siswa",
       title: "Masuk ke akun kamu",
-      sub: "Gunakan NISN yang terdaftar di sekolah.",
-      idLabel: "NISN / Nomor Induk Siswa",
-      idPlaceholder: "Contoh: 0091234567",
+      sub: "Masukkan 4 digit terakhir NIS kamu.",
+      idLabel: "NIS",
+      idPlaceholder: "Contoh: 4 digit terakhir NIS, mis. 4567",
       submitLabel: "Masuk sebagai Siswa",
       foot: 'Bukan siswa? Pilih peran <strong>Guru</strong> atau <strong>Admin</strong> di atas.',
       headline: "Selamat datang kembali di ruang kelas digital.",
@@ -617,8 +617,8 @@
     guru: {
       tag: "Portal Guru",
       title: "Masuk ke ruang kerja guru",
-      sub: "Masukkan NIP atau ID Guru kamu.",
-      idLabel: "NIP / ID Guru",
+      sub: "Masukkan ID Guru kamu.",
+      idLabel: "ID Guru",
       idPlaceholder: "Contoh: 198501012024",
       submitLabel: "Masuk sebagai Guru",
       foot: 'Bukan guru? Pilih peran <strong>Siswa</strong> atau <strong>Admin</strong> di atas.',
@@ -714,7 +714,7 @@
     }
   });
 
-  // Login via Apps Script (cek NISN/NIP/ID Admin ke Google Sheet database sekolah).
+  // Login via Apps Script (cek NIS/ID Guru/ID Admin ke Google Sheet database sekolah).
   async function handleLogin(){
     const activeRole = document.querySelector('.tab.active').dataset.role;
     const enteredId = idInput.value.trim();
@@ -787,7 +787,7 @@
       } else if(result.status === 'inactive'){
         showError('Akun ini sudah tidak aktif / sudah lulus.');
       } else {
-        showError('NISN/NIP/ID tidak terdaftar di database sekolah.');
+        showError('NIS/ID Guru/ID tidak terdaftar di database sekolah.');
       }
     }catch(err){
       console.error('Gagal terhubung ke Apps Script:', err);
