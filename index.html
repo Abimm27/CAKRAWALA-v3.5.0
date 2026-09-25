@@ -1984,7 +1984,7 @@
             }
             html += `
               <tr class="my-row" onclick="openMyReservationDetailModal('${id}')">
-                <td><strong>${escapeHtml(data.tanggal) || '-'}</strong><br><small style="color:#5c675f;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</small></td>
+                <td style="border-left: 3px solid ${statusBorderColor(data.status)}; padding-left: 12px;"><strong>${escapeHtml(data.tanggal) || '-'}</strong><br><small style="color:#5c675f;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</small></td>
                 <td>${escapeHtml(data.keperluan) || 'Kegiatan AVR'}</td>
                 <td>${badge}</td>
               </tr>
@@ -2192,6 +2192,20 @@
       });
 
       // 4. Load Data Jadwal Terkonfirmasi untuk Siswa
+
+      // Warna garis kiri baris tabel sesuai status -- senada dengan badge & rundown kalender,
+      // supaya status kelihatan sekilas tanpa perlu baca teks badge-nya.
+      function statusBorderColor(status, ongoing){
+        if (ongoing) return 'var(--danger)';
+        switch (status) {
+          case 'approved': return 'var(--success)';
+          case 'pending': return 'var(--chalk-gold-dim)';
+          case 'rejected': return 'var(--danger)';
+          case 'dibatalkan': return 'var(--ink-soft)';
+          default: return 'transparent';
+        }
+      }
+
       async function loadApprovedSchedules() {
         const container = document.getElementById('approvedSchedulesContainer');
         if(!container) return;
@@ -2219,13 +2233,17 @@
           rows.forEach(data => {
             const ongoing = isEventOngoingNow(data.tanggal, data.jamMulai, data.jamSelesai);
             const rowStyle = ongoing ? ' style="background: rgba(193,84,58,0.08);"' : '';
+            const borderColor = statusBorderColor('approved', ongoing);
             const statusBadge = ongoing
               ? '<span class="status ongoing">Sedang Berlangsung</span>'
               : '<span class="status approved">Disetujui</span>';
+            // Nama peminjam SENGAJA tidak ditampilkan di tab "Umum" ini (dilihat semua orang) --
+            // demi privasi. Kalau ada nama organisasi/kegiatan, itu yang ditampilkan sebagai gantinya.
+            const subInfo = data.penyelenggara ? `<br><small style="color: #666;">${escapeHtml(data.penyelenggara)}</small>` : '';
             html += `
               <tr${rowStyle}>
-                <td><strong>${data.tanggal || '-'}</strong><br><small style="color:#5c675f;">${data.jamMulai || ''} - ${data.jamSelesai || ''}</small></td>
-                <td>${escapeHtml(data.keperluan) || 'Kegiatan AVR'}<br><small style="color: #666;">Peminjam: ${escapeHtml(data.peminjam) || 'Umum'}</small></td>
+                <td style="border-left: 3px solid ${borderColor}; padding-left: 12px;"><strong>${data.tanggal || '-'}</strong><br><small style="color:#5c675f;">${data.jamMulai || ''} - ${data.jamSelesai || ''}</small></td>
+                <td>${escapeHtml(data.keperluan) || 'Kegiatan AVR'}${subInfo}</td>
                 <td>${statusBadge}</td>
               </tr>
             `;
@@ -2955,7 +2973,10 @@
             data[dateStr].items.push({
               time: `${item.jamMulai || ''} - ${item.jamSelesai || ''}`,
               title: item.keperluan || 'Kegiatan AVR',
-              note: `Peminjam: ${item.peminjam || 'Umum'}`,
+              // Nama peminjam hanya disertakan untuk admin -- panel Kalender Kegiatan ini dilihat SEMUA role,
+              // jadi siswa/guru lain tidak perlu tahu nama pribadi yang mereservasi (cukup lihat kelas/organisasi
+              // lewat titik warna & label di atasnya).
+              note: isAdmin ? `Peminjam: ${item.peminjam || 'Umum'}` : '',
               jamMulai: item.jamMulai || '',
               jamSelesai: item.jamSelesai || '',
               rawStatus: item.status,
