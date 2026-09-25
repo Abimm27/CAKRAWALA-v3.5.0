@@ -398,6 +398,30 @@
 
   .rundown-list { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
   .rundown-item { display: flex; gap: 12px; padding: 10px 0; border-top: 1px dashed var(--paper-line); }
+  .rundown-item { position: relative; }
+
+  .rundown-item.rd-approved { border-left: 3px solid var(--success); padding-left: 10px; }
+
+  .rundown-item.rd-pending { border-left: 3px solid var(--chalk-gold-dim); padding-left: 10px; }
+
+  .rundown-item.rd-rejected, .rundown-item.rd-dibatalkan { border-left: 3px solid var(--ink-soft); padding-left: 10px; }
+
+  .rundown-status-badge {
+
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 6px;
+
+  }
+
+  .rundown-status-badge.approved { background: rgba(58,139,92,0.14); color: var(--success); }
+
+  .rundown-status-badge.pending { background: rgba(232,185,78,0.24); color: var(--chalk-gold-dim); }
+
+  .rundown-status-badge.rejected, .rundown-status-badge.dibatalkan { background: rgba(31,59,50,0.08); color: var(--ink-soft); }
+
+
+
   .rundown-item:first-child { border-top: none; }
   .rundown-time {
     font-family: 'IBM Plex Mono', monospace;
@@ -2931,7 +2955,7 @@
             data[dateStr].items.push({
               time: `${item.jamMulai || ''} - ${item.jamSelesai || ''}`,
               title: item.keperluan || 'Kegiatan AVR',
-              note: `Peminjam: ${item.peminjam || 'Umum'} (${item.status})`,
+              note: `Peminjam: ${item.peminjam || 'Umum'}`,
               jamMulai: item.jamMulai || '',
               jamSelesai: item.jamSelesai || '',
               rawStatus: item.status,
@@ -2941,11 +2965,13 @@
               penyelenggara: item.penyelenggara || ''
             });
 
-            // Tentukan prioritas status hari (jika ada approved, prioritaskan approved)
-            if (item.status === 'approved') {
-              data[dateStr].status = 'approved';
-            } else if (item.status === 'pending' && data[dateStr].status !== 'approved') {
+            // Tentukan prioritas status hari: PENDING diutamakan (perlu ditinjau admin) supaya tidak
+            // "tenggelam" oleh hari yang sebagian sudah approved -- baru kalau tidak ada pending sama
+            // sekali, hari itu dianggap 'approved'.
+            if (item.status === 'pending') {
               data[dateStr].status = 'pending';
+            } else if (item.status === 'approved' && data[dateStr].status !== 'pending') {
+              data[dateStr].status = 'approved';
             }
           });
         } catch (err) {
@@ -3038,8 +3064,8 @@
         );
 
         let effectiveStatus = 'empty';
-        if (activeItems.some(it => it.rawStatus === 'approved')) effectiveStatus = 'approved';
-        else if (activeItems.some(it => it.rawStatus === 'pending')) effectiveStatus = 'pending';
+        if (activeItems.some(it => it.rawStatus === 'pending')) effectiveStatus = 'pending';
+        else if (activeItems.some(it => it.rawStatus === 'approved')) effectiveStatus = 'approved';
 
         cell.classList.remove('status-approved', 'status-pending', 'status-empty', 'status-ongoing');
         cell.classList.add(isOngoing ? 'status-ongoing' : ('status-' + effectiveStatus));
@@ -3077,14 +3103,19 @@
           }
           const dotInfo = getKelasDotColor(item.kelas, item.role);
           const captionText = item.penyelenggara ? item.penyelenggara : dotInfo.label;
+          const statusLabelMap = { approved: 'Disetujui', pending: 'Menunggu', rejected: 'Ditolak', dibatalkan: 'Dibatalkan' };
+          const statusLabel = statusLabelMap[item.rawStatus] || item.rawStatus || '';
+          const statusBadge = statusLabel
+            ? `<span class="rundown-status-badge ${escapeHtml(item.rawStatus || '')}">${escapeHtml(statusLabel)}</span>` : '';
           return `
-            <div class="rundown-item">
+            <div class="rundown-item rd-${escapeHtml(item.rawStatus || '')}">
               <div class="rundown-time">${escapeHtml(item.time)}</div>
               <div class="rundown-info">
                 ${ongoingBadge}
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px; flex-wrap:wrap;">
                   <span class="rundown-kelas-dot" style="background:${dotInfo.color};" title="${escapeHtml(dotInfo.label)}"></span>
                   <span class="rundown-kelas-caption">${escapeHtml(captionText)}</span>
+                  ${statusBadge}
                 </div>
                 <h4>${escapeHtml(item.title)}</h4>
                 <p>${escapeHtml(item.note) || ''}</p>
