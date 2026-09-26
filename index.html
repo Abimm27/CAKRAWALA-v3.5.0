@@ -196,7 +196,7 @@
   .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .data-table th { text-align: left; padding: 12px; background: rgba(31,59,50,0.03); color: var(--ink-soft); font-weight: 600; }
   .data-table td { padding: 14px 12px; border-bottom: 1px solid var(--paper-line); }
-  .status { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+  .status { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; text-transform: uppercase; letter-spacing: 0.03em; }
   .status.approved { background: rgba(58,139,92,0.1); color: var(--success); }
   .status.pending { background: rgba(232,185,78,0.15); color: var(--chalk-gold-dim); }
   .status.ongoing { background: rgba(193,84,58,0.14); color: var(--danger); }
@@ -1008,7 +1008,7 @@
         <div class="cal-legend">
           <span><span class="legend-dot approved"></span>Approved</span>
           <span><span class="legend-dot pending"></span>Pending</span>
-          <span><span class="legend-dot ongoing"></span>Sedang Berlangsung</span>
+          <span><span class="legend-dot ongoing"></span>Ongoing</span>
           <span><span class="legend-dot empty"></span>Tidak ada jadwal</span>
         </div>
 
@@ -1969,10 +1969,10 @@
           rows.sort((a, b) => (b.data.tanggal || '').localeCompare(a.data.tanggal || ''));
 
           const statusLabel = {
-            approved: '<span class="status approved">Disetujui</span>',
-            pending: '<span class="status pending">Menunggu</span>',
-            rejected: '<span class="status ongoing" style="background: rgba(193,84,58,0.14); color: var(--danger);">Ditolak</span>',
-            dibatalkan: '<span class="status pending" style="background: rgba(31,59,50,0.08); color: var(--ink-soft);">Dibatalkan</span>'
+            approved: '<span class="status approved">Approved</span>',
+            pending: '<span class="status pending">Pending</span>',
+            rejected: '<span class="status ongoing" style="background: rgba(193,84,58,0.14); color: var(--danger);">Rejected</span>',
+            dibatalkan: '<span class="status pending" style="background: rgba(31,59,50,0.08); color: var(--ink-soft);">Cancelled</span>'
           };
 
           let html = '';
@@ -1984,7 +1984,7 @@
             }
             html += `
               <tr class="my-row" onclick="openMyReservationDetailModal('${id}')">
-                <td style="border-left: 3px solid ${statusBorderColor(data.status)}; padding-left: 12px;"><strong>${escapeHtml(data.tanggal) || '-'}</strong><br><small style="color:#5c675f;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</small></td>
+                ${statusBarCell(statusBorderColor(data.status), `<strong>${escapeHtml(data.tanggal) || '-'}</strong><br><small style="color:#5c675f;">${escapeHtml(data.jamMulai) || ''} - ${escapeHtml(data.jamSelesai) || ''}</small>`)}
                 <td>${escapeHtml(data.keperluan) || 'Kegiatan AVR'}</td>
                 <td>${badge}</td>
               </tr>
@@ -2001,7 +2001,7 @@
         const data = myReservationsCache[docId];
         if(!data) return;
 
-        const statusTextMap = { approved: 'Disetujui', pending: 'Menunggu Persetujuan', rejected: 'Ditolak', dibatalkan: 'Dibatalkan' };
+        const statusTextMap = { approved: 'Approved', pending: 'Pending', rejected: 'Rejected', dibatalkan: 'Cancelled' };
         const chipClassMap = { approved: 'approved', pending: 'pending', rejected: 'ongoing', dibatalkan: 'empty' };
 
         document.getElementById('myResPeminjam').textContent = data.peminjam || 'Tidak diketahui';
@@ -2195,6 +2195,12 @@
 
       // Warna garis kiri baris tabel sesuai status -- senada dengan badge & rundown kalender,
       // supaya status kelihatan sekilas tanpa perlu baca teks badge-nya.
+      function statusBarCell(colorVar, innerHtml){
+        // Garis status dipasang di <div> DALAM sel (bukan langsung di <td>), lalu diberi margin
+        // atas-bawah -- supaya tiap baris kelihatan sebagai segmen TERPISAH, senada dengan tampilan
+        // di panel Kalender, bukan satu garis panjang yang menyambung ke baris berikutnya.
+        return `<td style="padding:0;"><div style="border-left:3px solid ${colorVar}; margin:6px 0; padding:8px 0 8px 12px;">${innerHtml}</div></td>`;
+      }
       function statusBorderColor(status, ongoing){
         if (ongoing) return 'var(--danger)';
         switch (status) {
@@ -2235,14 +2241,14 @@
             const rowStyle = ongoing ? ' style="background: rgba(193,84,58,0.08);"' : '';
             const borderColor = statusBorderColor('approved', ongoing);
             const statusBadge = ongoing
-              ? '<span class="status ongoing">Sedang Berlangsung</span>'
-              : '<span class="status approved">Disetujui</span>';
+              ? '<span class="status ongoing">Ongoing</span>'
+              : '<span class="status approved">Approved</span>';
             // Nama peminjam SENGAJA tidak ditampilkan di tab "Umum" ini (dilihat semua orang) --
             // demi privasi. Kalau ada nama organisasi/kegiatan, itu yang ditampilkan sebagai gantinya.
             const subInfo = data.penyelenggara ? `<br><small style="color: #666;">${escapeHtml(data.penyelenggara)}</small>` : '';
             html += `
               <tr${rowStyle}>
-                <td style="border-left: 3px solid ${borderColor}; padding-left: 12px;"><strong>${data.tanggal || '-'}</strong><br><small style="color:#5c675f;">${data.jamMulai || ''} - ${data.jamSelesai || ''}</small></td>
+                ${statusBarCell(borderColor, `<strong>${data.tanggal || '-'}</strong><br><small style="color:#5c675f;">${data.jamMulai || ''} - ${data.jamSelesai || ''}</small>`)}
                 <td>${escapeHtml(data.keperluan) || 'Kegiatan AVR'}${subInfo}</td>
                 <td>${statusBadge}</td>
               </tr>
@@ -3099,7 +3105,7 @@
         const chip = document.getElementById('modalStatusChip');
         const text = document.getElementById('modalStatusText');
         chip.className = 'modal-status-chip ' + status;
-        text.textContent = status === 'ongoing' ? 'Sedang Berlangsung'
+        text.textContent = status === 'ongoing' ? 'Ongoing'
           : status === 'approved' ? 'Approved'
           : status === 'pending' ? 'Pending'
           : 'Belum ada jadwal';
@@ -3124,7 +3130,7 @@
           }
           const dotInfo = getKelasDotColor(item.kelas, item.role);
           const captionText = item.penyelenggara ? item.penyelenggara : dotInfo.label;
-          const statusLabelMap = { approved: 'Disetujui', pending: 'Menunggu', rejected: 'Ditolak', dibatalkan: 'Dibatalkan' };
+          const statusLabelMap = { approved: 'Approved', pending: 'Pending', rejected: 'Rejected', dibatalkan: 'Cancelled' };
           const statusLabel = statusLabelMap[item.rawStatus] || item.rawStatus || '';
           const statusBadge = statusLabel
             ? `<span class="rundown-status-badge ${escapeHtml(item.rawStatus || '')}">${escapeHtml(statusLabel)}</span>` : '';
